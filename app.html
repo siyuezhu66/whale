@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f1f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>督学小鲸娘</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0a0f1f;--card:#111a30;--line:rgba(255,255,255,.09);--tek:#41e3d3;--pink:#ff8fb1;--gold:#ffd479;--txt:#e8eefc;--dim:#8fa0c0}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+ background:radial-gradient(900px 500px at 20% -10%,#18284d,transparent 60%),
+            radial-gradient(700px 400px at 110% 5%,#2a1636,transparent 55%),var(--bg);
+ color:var(--txt);display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;overscroll-behavior:none}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px 8px;gap:10px;flex:0 0 auto}
+.brand{font-weight:800;font-size:18px;letter-spacing:.3px}
+.brand i{color:var(--tek);font-style:normal}
+.sync{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#5a6b8c;transition:.2s}
+.dot.ok{background:var(--tek);box-shadow:0 0 8px var(--tek)}
+.dot.err{background:var(--pink)}
+.dot.busy{background:var(--gold);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch}
+.page{display:none;padding-top:6px}
+.page.on{display:block;animation:fade .22s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.headline{font-size:12px;letter-spacing:1px;color:var(--dim);margin:10px 0 14px}
+.headline b{color:var(--pink);font-size:15px}
+.o{margin-bottom:12px;border-radius:16px;padding:15px 18px 17px;background:var(--card);border:1px solid var(--line);position:relative;overflow:hidden}
+.o::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+.o.main::before{background:var(--tek)}.o.low::before{background:var(--gold)}.o.avoid::before{background:var(--pink)}
+.o label{font-size:11px;letter-spacing:2px;color:var(--dim);display:block;margin-bottom:8px}
+.o.main label{color:var(--tek)}.o.low label{color:var(--gold)}.o.avoid label{color:var(--pink)}
+.o p{font-size:15.5px;line-height:1.65}
+.o.main p{font-size:16.5px;font-weight:600}
+.btn{width:100%;border:0;border-radius:14px;padding:15px;font-size:16px;font-weight:700;font-family:inherit;
+ background:linear-gradient(135deg,var(--tek),#2bb6c9);color:#05202a;margin-top:10px;cursor:pointer;transition:.15s}
+.btn:active{transform:scale(.985)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);font-weight:600}
+.btn.sm{width:auto;padding:10px 18px;font-size:14px;margin:0}
+.msgs{display:flex;flex-direction:column;gap:12px;padding:10px 0 16px}
+.msg{max-width:88%;padding:12px 14px;border-radius:16px;font-size:15px;line-height:1.62;white-space:pre-wrap;word-break:break-word;animation:fade .2s}
+.msg.me{align-self:flex-end;background:linear-gradient(135deg,#1f6f8b,#175a72);color:#eaffff;border-bottom-right-radius:5px}
+.msg.bot{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px}
+.msg.bot .vt{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;margin-bottom:7px;background:rgba(65,227,211,.14);color:var(--tek)}
+.msg.bot .vt.zhuan{background:rgba(255,212,121,.14);color:var(--gold)}
+.msg.bot .vt.pao{background:rgba(255,143,177,.14);color:var(--pink)}
+.msg.bot .ev{font-size:12px;color:var(--dim);margin-top:9px;border-top:1px dashed var(--line);padding-top:8px}
+.inputbar{position:fixed;left:0;right:0;bottom:62px;padding:10px 14px;display:flex;gap:10px;align-items:flex-end;
+ background:linear-gradient(to top,rgba(10,15,31,.99),rgba(10,15,31,.8));backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:20;display:none}
+.inputbar.on{display:flex}
+.inputbar textarea{flex:1;resize:none;height:46px;max-height:130px;border-radius:14px;padding:12px 14px;
+ background:rgba(0,0,0,.35);border:1px solid var(--line);color:var(--txt);font-size:16px;font-family:inherit;line-height:1.4;outline:none}
+.inputbar textarea:focus{border-color:rgba(65,227,211,.45)}
+.inputbar button{flex:0 0 auto;width:auto;padding:13px 20px;margin:0}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(10,15,31,.97);backdrop-filter:blur(10px);
+ border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:30}
+.tabs button{flex:1;background:none;border:0;color:var(--dim);font-size:11.5px;font-family:inherit;padding:9px 0 10px;
+ display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:.15s}
+.tabs button em{font-style:normal;font-size:18px;line-height:1}
+.tabs button.on{color:var(--tek)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 18px;margin-bottom:12px}
+.mile .id{font-size:11px;color:var(--tek);letter-spacing:1px;font-weight:700}
+.mile .n{font-size:30px;font-weight:800;line-height:1.15;margin:4px 0 2px}
+.mile .n small{font-size:12px;color:var(--dim);font-weight:500;margin-left:4px}
+.mile .t{font-size:12.5px;color:var(--dim);line-height:1.5}
+.mile.urgent .n{color:var(--pink)}.mile.warn .n{color:var(--gold)}.mile.done{opacity:.45}
+.trk{margin-bottom:14px}
+.trk .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;gap:10px}
+.trk .row b{font-weight:600}
+.trk .row span{color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--tek),var(--pink));transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.trk .now{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5}
+.sec{font-size:12px;letter-spacing:2px;color:var(--dim);margin:22px 0 10px}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px}
+.fld input,.fld textarea{width:100%;padding:12px 14px;border-radius:12px;background:rgba(0,0,0,.3);
+ border:1px solid var(--line);color:var(--txt);font-size:15px;font-family:inherit;outline:none}
+.fld input:focus,.fld textarea:focus{border-color:rgba(65,227,211,.45)}
+.hint{font-size:12px;color:var(--dim);line-height:1.65;margin:6px 0 14px}
+.hint a{color:var(--tek)}
+.tokst{font-size:12px;line-height:1.5;color:var(--dim);margin:-4px 0 12px;min-height:17px;word-break:break-all}
+.tokst.good{color:#4ade80}.tokst.bad{color:#ff7b8a}.tokst.wait{color:var(--gold)}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%) translateY(16px);background:#1b2743;
+ border:1px solid var(--line);color:var(--txt);padding:10px 18px;border-radius:99px;font-size:13px;opacity:0;
+ pointer-events:none;transition:.25s;z-index:99;max-width:86%;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.ev-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12.5px;flex-wrap:wrap}
+.ev-item .d{color:var(--dim);font-variant-numeric:tabular-nums}
+.ev-item .k{font-weight:700;font-size:11.5px}
+.ev-item .k.zhen{color:var(--tek)}.ev-item .k.zhuan{color:var(--gold)}.ev-item .k.pao{color:var(--pink)}.ev-item .k.shou{color:#9aa}
+.ev-item .x{flex:1 0 100%;color:#cfd8ec;line-height:1.5}
+@media(min-width:700px){main{padding:0 16px 96px}.msgs{max-width:720px;margin:0 auto}.o{max-width:720px}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="brand">🐳 督学<i>小鲸娘</i></div>
+  <div class="sync"><span class="dot" id="dot"></span><span id="syncTxt">本地</span></div>
+</div>
+
+<main>
+  <section class="page on" id="p-today">
+    <div class="headline" id="headline"></div>
+    <div class="o main"><label>今 天</label><p id="t-main"></p></div>
+    <div class="o low"><label>保 底</label><p id="t-low"></p></div>
+    <div class="o avoid"><label>别 碰</label><p id="t-avoid"></p></div>
+    <button class="btn" id="btn-done">这节我做完了，记上</button>
+  </section>
+
+  <section class="page" id="p-chat">
+    <div class="msgs" id="msgs"></div>
+  </section>
+
+  <section class="page" id="p-prog">
+    <div id="miles"></div>
+    <div class="sec">两 条 线</div>
+    <div id="tracks"></div>
+    <div class="sec">最 近 记 录</div>
+    <div id="evs"></div>
+  </section>
+
+  <section class="page" id="p-set">
+    <div class="sec">云 同 步（GitHub Gist）</div>
+    <div class="hint">不填也能用，数据只存在这台设备。填了就能手机、电脑共用一份进度。<br>
+      需要一个 GitHub 账号，免费。生成 token 时<b>只勾 <code>gist</code></b> 这一项，别的都不用勾。</div>
+    <div class="fld"><label>GitHub Token</label><input id="s-token" type="password" placeholder="ghp_... 或 github_pat_..." autocomplete="off"></div>
+    <div class="fld"><label>云存档 ID（第二台设备才要填）</label><input id="s-gist" placeholder="e.g. 5f3a9c..."></div>
+    <div class="tokst" id="tokst">还没验证。填了 Token 先点下面的按钮。</div>
+    <button class="btn" id="btn-verify">只验证 Token</button>
+    <button class="btn" id="btn-sync" style="margin-top:10px">验证并同步</button>
+    <button class="btn ghost" id="btn-mkgist" style="margin-top:10px">创建新的云存档</button>
+    <div class="hint" style="margin-top:12px">🔒 Token 只存在这台设备的浏览器里，不会写进云存档、不会发给任何第三方。<br>
+      但它是明文的：<b>别在公共电脑上填</b>，也别把它截图发人。发现泄露就去 GitHub 里 Revoke 掉重生成一个。</div>
+
+    <div class="sec">D e e p S e e k 对 话（可选）</div>
+    <div class="hint">不填就用本地规则回话，一样能判断。填了让回复更像人话。Key 只存在这台设备上。<br>
+      获取：<a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com/api_keys</a></div>
+    <div class="fld"><label>DeepSeek API Key</label><input id="s-ai" type="password" placeholder="sk-..." autocomplete="off"></div>
+    <button class="btn ghost" id="btn-ai">保存 Key</button>
+
+    <div class="sec">计 划</div>
+    <div class="hint">改里程碑日期（YYYY-MM-DD），改完点保存。</div>
+    <div id="s-miles"></div>
+    <button class="btn ghost" id="btn-save-plan">保存计划</button>
+
+    <div class="sec">数 据</div>
+    <button class="btn ghost" id="btn-export">导出备份文件</button>
+    <button class="btn ghost" id="btn-import" style="margin-top:10px">从备份导入</button>
+    <input type="file" id="file-in" accept="application/json" style="display:none">
+    <div class="hint" style="margin-top:14px">版本 2.0 · 引擎在本地跑，不需要联网也能用</div>
+  </section>
+</main>
+
+<div class="inputbar" id="bar">
+  <textarea id="inp" rows="1" placeholder="今天做了啥？随便说，乱说也行"></textarea>
+  <button class="btn sm" id="btn-send">发</button>
+</div>
+
+<nav class="tabs">
+  <button class="on" data-p="today"><em>📅</em>今天</button>
+  <button data-p="chat"><em>💬</em>对话</button>
+  <button data-p="prog"><em>📈</em>进度</button>
+  <button data-p="set"><em>⚙️</em>设置</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// =========================================================== 默认状态 ====
+const DEFAULT_STATE = {
+  version: 2,
+  profile: {user:"主人", term_start:"2026-11-05", exam_week_start:"2026-12-28", term_end:"2027-01-16"},
+  milestones: [
+    {id:"M1", title:"实验室2 拿到 开环 / P / P+I 三条曲线对比图", due:"2026-11-22", note:"进组敲门砖", done:false},
+    {id:"M2", title:"实验室1 交出约 10 页设计报告", due:"2026-12-13", note:"保底线交差", done:false},
+    {id:"M3", title:"两边各做一次能讲 5 分钟的演示", due:"2026-12-27", note:"之后进期末周", done:false}
+  ],
+  tracks: {
+    lab2: {name:"实验室2 · 关节电机驱动（主线）", deadline:"2026-11-22", steps:[
+      {id:"L2-1", title:"读懂通信协议：把一条指令按字节拆开", parts:[
+        {desc:"翻到电机手册的通信章节，抄下一条完整指令（每个字节都写十六进制）", out:"一页纸：完整指令 + 波特率", min:45},
+        {desc:"给抄下的每个字节写注释：哪个是 ID、哪个是模式、哪个是目标位置、哪个是校验", out:"每条指令能指着字节说出用途", min:45}]},
+      {id:"L2-2", title:"用串口发指令让电机转起来", parts:[
+        {desc:"把 USB-TTL 接上电机，用串口助手把上面那条指令发出去，让它转一下", out:"能复现的指令 + 接线照片", min:45},
+        {desc:"把「最短一条能让它转」的指令存成 txt（含波特率和接线脚位）", out:"一个能直接用的指令文件", min:45}]},
+      {id:"L2-3", title:"读懂电机回传的反馈", parts:[
+        {desc:"发一条「读反馈」指令，把回的字节原样抄下来", out:"一行回传数据", min:45},
+        {desc:"标出位置 / 速度 / 电流各占哪几个字节、什么单位、怎么换算", out:"反馈字段表", min:45}]},
+      {id:"L2-4", title:"定时读位置、自己算速度、画曲线", parts:[
+        {desc:"每 20ms 读一次位置，连续读 5 秒，存成 CSV", out:"一个 250 行的数据文件", min:60},
+        {desc:"用差分算速度，画出一条速度曲线（能用 Excel 就行）", out:"一张速度图", min:60}]},
+      {id:"L2-5", title:"开环 → P → P+I 三条曲线画在一张图上", parts:[
+        {desc:"开环给一个阶跃：记下超调量和稳定时间", out:"开环曲线 + 两个数", min:60},
+        {desc:"只加 P，调一个 Kp 值，把曲线叠到同一张图上", out:"第二条曲线", min:60},
+        {desc:"加上 I，三条曲线同图，写一句结论（谁快、谁超调大）", out:"对比图 — M1 交付物", min:60}]},
+      {id:"L2-6", title:"速度环 → 电流环 → 力矩 → 左右轮同步", parts:[
+        {desc:"速度环：让电机稳定跑在设定转速，记录波动", out:"速度环曲线", min:90},
+        {desc:"电流环 + 力矩控制：给定力矩，验证输出", out:"力矩响应记录", min:90},
+        {desc:"左右轮同步：两轮同速跑一条直线", out:"一段能看的视频", min:60}]}
+    ]},
+    lab1: {name:"实验室1 · 踝关节助力（保底线）", deadline:"2026-12-13", steps:[
+      {id:"L1-1", title:"优化设计方案（导师说太简略）", parts:[
+        {desc:"翻出导师的批注，列出「太简略」具体缺哪几块，至少写 5 条", out:"一张缺口清单", min:45},
+        {desc:"补一页方案 v2：对比表 + 选型理由", out:"方案 v2 一页纸", min:45}]},
+      {id:"L1-2", title:"补传动方案和选型依据", parts:[
+        {desc:"算出所需力矩和传动比，写成两行式子", out:"计算页", min:45},
+        {desc:"列 3 个候选电机/减速器，做一张选型对比表", out:"选型表", min:45}]},
+      {id:"L1-3", title:"出工程图 2–3 张", parts:[
+        {desc:"画主视图 + 一个剖视图，标好关键尺寸", out:"2 张图", min:60},
+        {desc:"补一张零件图，装配体做爆炸视图", out:"零件图 + 爆炸图", min:60}]},
+      {id:"L1-4", title:"写约 10 页设计报告", parts:[
+        {desc:"搭框架：目录 + 图位，先把页数凑出来", out:"报告骨架", min:60},
+        {desc:"写「设计计算」一章（选型、传动比、力矩校核）", out:"3–4 页正文", min:60},
+        {desc:"写「搭建与调试」+「结论」两章", out:"凑满约 10 页", min:60}]},
+      {id:"L1-5", title:"做一次能讲 5 分钟的演示", parts:[
+        {desc:"录一段 5 分钟演示视频，并写一页讲稿要点", out:"视频 + 讲稿", min:60}]}
+    ]}
+  },
+  log: [],
+  tasks: {}
+};
+
+const WEEK_SLOTS = [1.5, 1.5, 1.5, 0.0, 5.5, 8.5, 3.0];
+const WEEKDAY_CN = ["周一","周二","周三","周四","周五","周六","周日"];
+
+const BANNED = ["视觉","建图","SLAM","slam","ROS2","ros2","FOC","foc","EtherCAT","ethercat","IsaacLab","isaac","PCB","pcb","深度学习","神经网络","大模型","强化学习","语义","导航"];
+const DOUBT_WORDS = ["好菜","不配","我很差","没用","废物","跟不上","放弃","摆烂","自我怀疑","自卑","算了"];
+const BLOCK_WORDS = ["作业","网课","考试","被叫","临时","生病","头疼","头痛","好累","太累","困","躺","没时间","状态差","崩了","加班","开会","实验课"];
+const PRODUCE_STRONG = ["写","画","做","发","测","跑通","录","交","出图","焊","连","调","完成","搞定","验证","对比","截图","保存","提交","抄","存"];
+const PRODUCE_WEAK = ["补","改","整理","梳理"];
+const ARTIFACTS = ["笔记","图","指令","曲线","截图","文件","视频","报告","表格","表","数据","页","代码","文档","记录","草稿","清单","公式"];
+const INPUT_WORDS = ["看","读","搜","查","找","想","学","理解","翻","浏览","过了一遍","复习","补课","补觉"];
+const LAB1_HINT = ["方案","工程图","装配","踝关节","设计报告","选型","传动","零件图","爆炸图","助力"];
+const LAB2_HINT = ["电机","协议","串口","指令","曲线","闭环","电流环","速度环","反馈","阶跃","编码器","Kp","PI"];
+
+// =========================================================== 工具 ====
+const pad = n => String(n).padStart(2, "0");
+function todayStr(d) { d = d || new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function todayDate() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+function parseDay(s) { const p = s.split("-").map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+function daysUntil(s) { return Math.round((parseDay(s) - todayDate()) / 86400000); }
+function weekdayIdx() { return (new Date().getDay() + 6) % 7; }
+function mentions(text, words) { return words.filter(w => text.indexOf(w) >= 0); }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function esc(s) { return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+// =========================================================== 存取 ====
+const LS_STATE = "whale_state_v2";
+const LS_SYNC = "whale_sync_v2";
+const LS_AI = "whale_ai_v2";
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_STATE);
+    if (raw) { const s = JSON.parse(raw); if (s && s.tracks) return s; }
+  } catch (e) {}
+  return clone(DEFAULT_STATE);
+}
+let STATE = loadState();
+let dirty = false;
+
+function saveState(silent) {
+  localStorage.setItem(LS_STATE, JSON.stringify(STATE));
+  updateSyncDot(dirty ? "?" : "");
+  if (!silent) schedulePush();
+}
+
+function syncCfg() {
+  try { return JSON.parse(localStorage.getItem(LS_SYNC) || "{}"); } catch (e) { return {}; }
+}
+function aiCfg() {
+  try { return JSON.parse(localStorage.getItem(LS_AI) || "{}"); } catch (e) { return {}; }
+}
+
+// =========================================================== 进度 ====
+function nearestMilestone() {
+  const live = STATE.milestones.filter(m => !m.done);
+  if (!live.length) return null;
+  return live.slice().sort((a, b) => parseDay(a.due) - parseDay(b.due))[0];
+}
+function currentStep(track) {
+  return STATE.tracks[track].steps.find(s => !s.done) || null;
+}
+function currentPart(track) {
+  const step = currentStep(track);
+  if (!step) return [null, -1, null];
+  const done = step.done_parts || 0;
+  if (done >= step.parts.length) return [step, -1, null];
+  return [step, done, step.parts[done]];
+}
+function trackProgress(track) {
+  const t = STATE.tracks[track];
+  const totalParts = t.steps.reduce((a, s) => a + s.parts.length, 0);
+  const doneParts = t.steps.reduce((a, s) => a + (s.done ? s.parts.length : Math.min(s.done_parts || 0, s.parts.length)), 0);
+  return {
+    name: t.name,
+    totalParts: totalParts,
+    partsDone: doneParts,
+    stepsDone: t.steps.filter(s => s.done).length,
+    totalSteps: t.steps.length,
+    pct: totalParts ? Math.round(doneParts / totalParts * 100) : 0
+  };
+}
+function streakGap() {
+  if (!STATE.log.length) return 0;
+  const last = parseDay(STATE.log[STATE.log.length - 1].date);
+  return Math.max(0, Math.round((todayDate() - last) / 86400000) - 1);
+}
+function inExamWeek() { return todayDate() >= parseDay(STATE.profile.exam_week_start); }
+function weekLogs(back) {
+  const cut = new Date(todayDate().getTime() - 7 * (back || 1) * 86400000);
+  return STATE.log.filter(e => parseDay(e.date) >= cut);
+}
+
+// =========================================================== 任务 ====
+function genToday() {
+  const key = todayStr();
+  if (STATE.tasks[key]) return STATE.tasks[key];
+  const m = nearestMilestone();
+  const left = m ? daysUntil(m.due) : 999;
+  const gap = streakGap();
+  const wd = weekdayIdx();
+  let main = "", low = "", avoid = [];
+
+  if (inExamWeek()) {
+    main = "期末周：主线全部暂停，只复习考试";
+    low = "睡够 7 小时";
+    avoid = ["实验室2 闭环", "实验室1 报告"];
+  } else if (gap >= 2) {
+    main = "先别铺大摊子：重启只需 15 分钟";
+    low = "把上一节的笔记翻出来读一遍，写一句「我停在哪个字节」";
+    avoid = ["新章节", "新工具", "重新规划整个学期"];
+  } else if (wd === 3) {
+    main = "周四空着：写作业 / 上网课 / 补 C 语言指针";
+    low = "补 20 分钟 C 语言指针（数组和指针怎么绕）";
+    avoid = ["实验室任务（今天本来就不排）"];
+  } else {
+    let track = "lab2";
+    if (STATE.milestones[0].done) track = "lab1";
+    let [step, idx, part] = currentPart(track);
+    if (!step) {
+      track = track === "lab2" ? "lab1" : "lab2";
+      [step, idx, part] = currentPart(track);
+    }
+    if (!step) {
+      main = "两条线的关卡都清完了,等新任务";
+      low = "整理一遍现有笔记";
+    } else {
+      const tag = track === "lab2" ? "实验室2" : "实验室1";
+      const mm = part.min > 60 ? 60 : part.min;
+      main = tag + "：" + part.desc + "（约 " + mm + " 分钟）→ " + part.out;
+      low = "崩了也做这个：" + step.title + " 只做 10 分钟，写下「做到哪了」";
+      avoid = BANNED.slice(0, 6).concat(["比当前更靠后的章节"]);
+    }
+  }
+  const task = {
+    date: key,
+    headline: m ? (m.id + " 还有 " + left + " 天") : "里程碑全清",
+    main: main, low: low, avoid: avoid.join("、"), status: "open"
+  };
+  STATE.tasks[key] = task;
+  return task;
+}
+function renderTask(task) {
+  return "【今天】" + task.main + "\n【保底】" + task.low + "\n【别碰】" + task.avoid;
+}
+// =========================================================== 评判 ====
+function similar(a, b) {
+  const sa = new Set(a), sb = new Set(b);
+  if (!sa.size || !sb.size) return 0;
+  let inter = 0;
+  sa.forEach(c => { if (sb.has(c)) inter++; });
+  return inter / (sa.size + sb.size - inter);
+}
+
+function judge(text) {
+  const t = (text || "").trim();
+  const prev = STATE.log.length ? STATE.log[STATE.log.length - 1].text : "";
+  const banned = mentions(t, BANNED);
+  const doubt = mentions(t, DOUBT_WORDS);
+  const blocked = mentions(t, BLOCK_WORDS);
+  const strong = mentions(t, PRODUCE_STRONG);
+  const weak = mentions(t, PRODUCE_WEAK);
+  const artifacts = mentions(t, ARTIFACTS);
+  const produced = strong.concat(weak.filter(() => artifacts.length));
+  const consumed = mentions(t, INPUT_WORDS);
+  const repeat = !!prev && similar(prev, t) > 0.55;
+
+  let [step, idx, part] = currentPart("lab2");
+  if (!step) [step, idx, part] = currentPart("lab1");
+  const pdesc = part ? part.desc : "当前那一节";
+  const pout = part ? part.out : "当前产出";
+
+  const res = { verdict: "", evidence: [], tomorrow: "keep", action: "", advance: false, reply: "" };
+
+  if (banned.length) {
+    res.verdict = "跑偏";
+    res.evidence = ["提到 " + banned.join(", ")];
+    res.reply = "先把闭环跑通，" + banned[0] + " 这个排到进组以后。\n今天要做的还是：" + pdesc + "。";
+    return res;
+  }
+  if (doubt.length) {
+    res.verdict = "自我怀疑";
+    res.evidence = ["出现「" + doubt[0] + "」"];
+    const p2 = trackProgress("lab2");
+    const m = nearestMilestone();
+    const left = m ? daysUntil(m.due) : 0;
+    res.reply = "你现在会的是电机驱动 + 编码器测速 + PID，离门槛差的就是通信协议和闭环。\n" +
+      "口径给你：lab2 关卡完成 " + p2.partsDone + "/" + p2.totalParts + "，离 M1 还有 " + left + " 天。按现在的节奏，够。";
+    return res;
+  }
+  if (blocked.length && !artifacts.length) {
+    res.verdict = "受阻顺延";
+    res.tomorrow = "shift";
+    res.evidence = ["被「" + blocked.slice(0, 2).join(", ") + "」占了"];
+    res.reply = "今天顺延，不算你的错。这周哪天能补？周四或周末各留一个 45 分钟的格子就行。\n明天还是：" + pdesc + "。";
+    return res;
+  }
+  if (produced.length) {
+    res.verdict = "真推进";
+    res.advance = true;
+    if (artifacts.length && !strong.length) res.evidence = ["有实物：" + artifacts.slice(0, 3).join(", ")];
+    else res.evidence = ["有产物：" + produced.slice(0, 3).join(", ")];
+    if (repeat) res.evidence.push("和上次说的内容高度重合");
+    res.reply = "这是真推进，记一笔。";
+    return res;
+  }
+  if (consumed.length) {
+    res.verdict = "原地打转";
+    res.tomorrow = "shrink";
+    res.evidence = ["只有「" + consumed.slice(0, 3).join(", ") + "」，没有能拿出来的东西"];
+    res.action = "把门槛降到 20 分钟，只交一件能给别人看的东西";
+    res.reply = "看了不等于会了。今天只做一件事：把一条指令抄下来，每个字节旁边写上它是什么，20 分钟。\n写不完也没关系，明天接着这一节。";
+    return res;
+  }
+  res.verdict = "信息不足";
+  res.reply = "一句话就行：今天有没有一个能拿去给师兄看的东西（截图 / 一页笔记 / 一条曲线）？\n没有的话明天就补 " + pout + "。";
+  return res;
+}
+
+function pickTrack(text) {
+  const l1 = mentions(text, LAB1_HINT);
+  const l2 = mentions(text, LAB2_HINT);
+  if (l1.length && !l2.length) return "lab1";
+  if (l2.length && !l1.length) return "lab2";
+  return STATE.milestones[0].done ? "lab1" : "lab2";
+}
+
+function applyAdvance(track) {
+  const [step, idx, part] = currentPart(track);
+  if (!step || !part) return null;
+  step.done_parts = (step.done_parts || 0) + 1;
+  const finished = step.done_parts >= step.parts.length;
+  if (finished) step.done = true;
+  STATE.milestones.forEach(m => {
+    if (m.done) return;
+    if (m.id === "M1" && STATE.tracks.lab2.steps[4].done) m.done = true;
+    if (m.id === "M2" && STATE.tracks.lab1.steps[3].done) m.done = true;
+    if (m.id === "M3" && STATE.tracks.lab1.steps[4].done && STATE.tracks.lab2.steps[5].done) m.done = true;
+  });
+  return { step: step.id, finished: finished, part: part.desc };
+}
+
+function record(text, verdict, track) {
+  STATE.log.push({
+    date: todayStr(), weekday: WEEKDAY_CN[weekdayIdx()], text: text,
+    verdict: verdict.verdict, evidence: verdict.evidence || [],
+    tomorrow: verdict.tomorrow || "keep", track: track || null
+  });
+  const key = todayStr();
+  if (STATE.tasks[key]) STATE.tasks[key].status = "reported";
+}
+
+function buildReport(track) {
+  const t = STATE.tracks[track];
+  const logs = weekLogs(1).filter(e => e.track === track);
+  const done = [];
+  t.steps.forEach(s => { if (s.done) done.push("- " + s.id + " " + s.title); });
+  if (!done.length) {
+    const [step, idx] = currentPart(track);
+    if (step) done.push("- 进行中：" + step.id + " " + step.title + "，已完成 " + idx + " 小节");
+  }
+  const asks = {
+    lab1: "需要导师给：确认传动方案的选型边界；一张现场实物图；演示时间确认。",
+    lab2: "需要导师给：电机完整手册（通信章节）；允许上电测试的时间；师兄 10 分钟答疑。"
+  };
+  const nxt = {
+    lab1: "- 完成方案 v2 并出 2–3 张工程图\n- 启动报告正文",
+    lab2: "- 打通串口指令\n- 读出反馈字段\n- 开始记录位置数据"
+  };
+  const stuck = {
+    lab1: "- 「太简略」具体指哪三块，哪些必须补、哪些可以省？",
+    lab2: "- 校验位是按字节和还是 CRC，手册里哪一页写的？"
+  };
+  return "# 本周汇报 · " + t.name + "\n\n" +
+    "## 一、本周做了什么（只写有产出的）\n" + (done.join("\n") || "- 无") + "\n\n" +
+    "## 二、卡在哪（具体提问）\n" + stuck[track] + "\n\n" +
+    "## 三、下周做什么\n" + nxt[track] + "\n\n" +
+    "## 四、需要导师给什么\n" + asks[track] + "\n\n" +
+    "---\n本周记录：\n" + (logs.length ? logs.map(e => "- " + e.date + " " + e.weekday + "：" + e.text).join("\n") : "- 本周记录为空");
+}
+
+// =========================================================== 合并 ====
+function mergeStates(local, remote) {
+  const out = clone(local);
+  const seen = new Set(), log = [];
+  (local.log || []).concat(remote.log || []).forEach(e => {
+    const k = e.date + "|" + e.text;
+    if (!seen.has(k)) { seen.add(k); log.push(e); }
+  });
+  log.sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
+  out.log = log;
+  out.milestones = local.milestones.map(m => {
+    const r = (remote.milestones || []).find(x => x.id === m.id);
+    return Object.assign({}, m, { done: !!(m.done || (r && r.done)) });
+  });
+  ["lab2", "lab1"].forEach(tk => {
+    out.tracks[tk].steps.forEach((s, i) => {
+      const rsteps = (remote.tracks && remote.tracks[tk] && remote.tracks[tk].steps) || [];
+      const rs = rsteps[i];
+      if (rs) {
+        s.done_parts = Math.max(s.done_parts || 0, rs.done_parts || 0);
+        s.done = !!(s.done || rs.done);
+      }
+    });
+  });
+  out.tasks = Object.assign({}, remote.tasks || {}, local.tasks || {});
+  return out;
+}
+
+// =========================================================== 云同步 ====
+let pushTimer = null;
+function setDot(cls, txt) {
+  const d = document.getElementById("dot");
+  d.className = "dot" + (cls ? " " + cls : "");
+  document.getElementById("syncTxt").textContent = txt;
+}
+function updateSyncDot(st) {
+  const c = syncCfg();
+  if (!c.token || !c.gistId) { setDot("", "本地"); return; }
+  if (st === "busy") setDot("busy", "同步中");
+  else if (st === "ok") setDot("ok", "已同步");
+  else if (st === "err") setDot("err", "同步失败");
+  else setDot("", dirty ? "待同步" : "已同步");
+}
+function schedulePush() {
+  const c = syncCfg();
+  if (!c.token || !c.gistId) return;
+  dirty = true;
+  updateSyncDot("");
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(doPush, 1500);
+}
+async function ghHeaders() {
+  const c = syncCfg();
+  return { "Authorization": "Bearer " + c.token, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
+}
+async function doPush() {
+  const c = syncCfg();
+  if (!c.token || !c.gistId) return;
+  updateSyncDot("busy");
+  try {
+    const r = await fetch("https://api.github.com/gists/" + c.gistId, {
+      method: "PATCH", headers: await ghHeaders(),
+      body: JSON.stringify({ files: { "whale-state.json": { content: JSON.stringify(STATE) } } })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    dirty = false; updateSyncDot("ok");
+  } catch (e) { updateSyncDot("err"); }
+}
+async function doPull(merge) {
+  const c = syncCfg();
+  if (!c.token || !c.gistId) return false;
+  updateSyncDot("busy");
+  try {
+    const r = await fetch("https://api.github.com/gists/" + c.gistId, { headers: await ghHeaders() });
+    if (r.status === 404) throw new Error("云存档找不到（404）——ID 可能抄错，或这个 Token 没权限");
+    if (r.status === 401) throw new Error("Token 无效或已过期（401）");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    const f = j.files && j.files["whale-state.json"];
+    if (!f || !f.content) throw new Error("存档里没有 whale-state.json");
+    const remote = JSON.parse(f.content);
+    if (merge) {
+      STATE = mergeStates(STATE, remote);
+      localStorage.setItem(LS_STATE, JSON.stringify(STATE));
+    } else {
+      STATE = remote;
+      localStorage.setItem(LS_STATE, JSON.stringify(STATE));
+    }
+    renderAll(); updateSyncDot("ok");
+    return true;
+  } catch (e) { updateSyncDot("err"); toast("拉取失败：" + e.message); return false; }
+}
+async function verifyToken(tk) {
+  if (!tk) return { ok: false, msg: "还没填 Token" };
+  if (!/^(ghp_|github_pat_|gho_|ghu_)/.test(tk) && tk.length < 20)
+    return { ok: false, msg: "这看起来不像 GitHub Token（应该是 ghp_ 或 github_pat_ 开头）" };
+  try {
+    const r = await fetch("https://api.github.com/user", {
+      headers: { "Authorization": "Bearer " + tk, "Accept": "application/vnd.github+json" }
+    });
+    if (r.ok) { const j = await r.json(); return { ok: true, login: j.login }; }
+    if (r.status === 401) return { ok: false, msg: "Token 无效或已过期（401）——去 GitHub 重新生成一个" };
+    if (r.status === 403) return { ok: false, msg: "GitHub 拒绝了这个请求（403）：可能没勾 gist 权限，或被限流" };
+    return { ok: false, msg: "GitHub 返回 " + r.status };
+  } catch (e) {
+    return { ok: false, msg: "连不上 GitHub（" + e.message + "）——检查网络，或先把 VPN / 代理关掉再试" };
+  }
+}
+
+function setTokSt(txt, cls) {
+  const e = document.getElementById("tokst");
+  e.textContent = txt;
+  e.className = "tokst" + (cls ? " " + cls : "");
+}
+
+async function createGist() {
+  const c = syncCfg();
+  const tk = document.getElementById("s-token").value.trim();
+  if (!tk) { toast("先把 token 填上"); return; }
+  setTokSt("验证中…", "wait");
+  const v = await verifyToken(tk);
+  if (!v.ok) { setTokSt("✗ " + v.msg, "bad"); toast("Token 没通过验证"); return; }
+  setTokSt("✓ Token 有效（" + v.login + "），正在建存档…", "good");
+  updateSyncDot("busy");
+  try {
+    const r = await fetch("https://api.github.com/gists", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + tk, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "督学小鲸娘云存档", public: false,
+        files: { "whale-state.json": { content: JSON.stringify(STATE) } }
+      })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status + (r.status === 403 ? "（Token 没勾 gist 权限）" : ""));
+    const j = await r.json();
+    c.token = tk; c.gistId = j.id;
+    localStorage.setItem(LS_SYNC, JSON.stringify(c));
+    document.getElementById("s-gist").value = j.id;
+    dirty = false; updateSyncDot("ok");
+    setTokSt("✓ 存档建好了，ID 已自动填上。手机端只需 Token + 这个 ID", "good");
+    toast("云存档建好了");
+  } catch (e) { updateSyncDot("err"); setTokSt("✗ 创建失败：" + e.message, "bad"); }
+}
+
+// =========================================================== AI ====
+async function aiSay(v, userText) {
+  const c = aiCfg();
+  if (!c.key) return null;
+  const m = nearestMilestone();
+  const left = m ? daysUntil(m.due) : 0;
+  const p2 = trackProgress("lab2");
+  const p1 = trackProgress("lab1");
+  const sys = [
+    "你是「督学小鲸娘」，主人的督学助手。说话像同组学长：简短、直接、不夸人、不灌鸡汤，200 字以内。",
+    "今天是 " + todayStr() + " " + WEEKDAY_CN[weekdayIdx()] + "，距最近里程碑（" + (m ? m.id : "无") + "）还有 " + left + " 天。",
+    "实验室2 进度 " + p2.partsDone + "/" + p2.totalParts + " 小节；实验室1 进度 " + p1.partsDone + "/" + p1.totalParts + " 小节。",
+    "系统刚把这次汇报判为【" + v.verdict + "】，依据：" + ((v.evidence || []).join("；") || "无") + "。",
+    "你的任务：用一句话确认这个判断，再给一个明天能立刻做的具体动作。不要复述判断词，不要问超过一个问题，不要夸人。"
+  ].join("\n");
+  try {
+    const r = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + c.key },
+      body: JSON.stringify({
+        model: "deepseek-chat", temperature: 0.7, max_tokens: 200,
+        messages: [{ role: "system", content: sys }, { role: "user", content: userText }]
+      })
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    return txt ? txt.trim() : null;
+  } catch (e) { return null; }
+}
+
+// =========================================================== 聊天 ====
+const LS_CHAT = "whale_chat_v2";
+let CHAT = [];
+try { CHAT = JSON.parse(localStorage.getItem(LS_CHAT) || "[]"); } catch (e) { CHAT = []; }
+function saveChat() { localStorage.setItem(LS_CHAT, JSON.stringify(CHAT.slice(-60))); }
+
+function vclass(v) { return v === "真推进" ? "" : v === "原地打转" ? " zhuan" : " pao"; }
+
+function renderChat() {
+  const box = document.getElementById("msgs");
+  box.innerHTML = CHAT.map(m => {
+    if (m.who === "me") return '<div class="msg me">' + esc(m.text) + "</div>";
+    const ev = (m.evidence && m.evidence.length)
+      ? '<div class="ev">依据：' + esc(m.evidence.join("；")) + "</div>" : "";
+    return '<div class="msg bot">' + (m.verdict ? '<span class="vt' + vclass(m.verdict) + '">' + esc(m.verdict) + "</span>" : "") +
+      esc(m.text) + ev + "</div>";
+  }).join("");
+  box.scrollIntoView(false);
+  window.scrollTo(0, document.body.scrollHeight);
+  const main = document.querySelector("main");
+  main.scrollTop = main.scrollHeight;
+}
+
+async function send() {
+  const ta = document.getElementById("inp");
+  const text = ta.value.trim();
+  if (!text) return;
+  ta.value = ""; ta.style.height = "46px";
+  CHAT.push({ who: "me", text: text });
+  const v = judge(text);
+  const track = v.advance ? pickTrack(text) : null;
+  let extra = "";
+  if (v.advance) {
+    const info = applyAdvance(track);
+    if (info) {
+      extra = "\n已记 " + info.step + " 一间，" + (info.finished ? "整节完成。" : "下一小节继续。");
+      const [st, idx, part] = currentPart(track);
+      if (st && part) extra += "\n明天：" + part.desc;
+      else extra += "\n这条线的关卡已经清完了，等新任务。";
+    }
+  }
+  record(text, v, track);
+  CHAT.push({ who: "bot", text: v.reply + extra, verdict: v.verdict, evidence: v.evidence });
+  saveChat(); saveState(); renderChat(); renderToday(); renderProgress();
+
+  if (aiCfg().key) {
+    const ai = await aiSay(v, text);
+    if (ai) {
+      CHAT[CHAT.length - 1].text = ai;
+      saveChat(); renderChat();
+    }
+  }
+}
+
+// =========================================================== 渲染 ====
+function renderToday() {
+  const t = genToday();
+  document.getElementById("headline").innerHTML =
+    esc(t.headline).replace(/(\d+ 天)/, "<b>$1</b>");
+  document.getElementById("t-main").textContent = t.main;
+  document.getElementById("t-low").textContent = t.low;
+  document.getElementById("t-avoid").textContent = t.avoid;
+}
+
+function renderProgress() {
+  document.getElementById("miles").innerHTML = STATE.milestones.map(m => {
+    if (m.done) return '<div class="card mile done"><div class="id">' + m.id + ' · 已完成</div><div class="n">✓</div><div class="t">' + esc(m.title) + "</div></div>";
+    const left = daysUntil(m.due);
+    const cls = left <= 10 ? "urgent" : left <= 20 ? "warn" : "";
+    return '<div class="card mile ' + cls + '"><div class="id">' + m.id + " · " + esc(m.due) + "</div>" +
+      '<div class="n">' + left + "<small>天</small></div>" +
+      '<div class="t">' + esc(m.title) + "</div></div>";
+  }).join("");
+
+  document.getElementById("tracks").innerHTML = ["lab2", "lab1"].map(tk => {
+    const p = trackProgress(tk);
+    const [step, idx, part] = currentPart(tk);
+    const now = step ? (step.id + " · 第 " + (idx + 1) + "/" + step.parts.length + " 小节：" + esc(part ? part.out : ""))
+      : "关卡全清 · 等新任务";
+    return '<div class="card trk"><div class="row"><b>' + esc(p.name) + "</b><span>" +
+      p.partsDone + "/" + p.totalParts + " 小节 · " + p.pct + "%</span></div>" +
+      '<div class="bar"><i style="width:' + p.pct + '%"></i></div>' +
+      '<div class="now">当前：' + now + "</div></div>";
+  }).join("");
+
+  document.getElementById("evs").innerHTML = STATE.log.slice(-10).reverse().map(e => {
+    const k = e.verdict === "真推进" ? "zhen" : e.verdict === "原地打转" ? "zhuan" : e.verdict === "跑偏" ? "pao" : "shou";
+    return '<div class="ev-item"><div class="d">' + e.date.slice(5) + " " + esc(e.weekday || "") + "</div>" +
+      '<div class="k ' + k + '">' + esc(e.verdict) + '</div><div class="x">' + esc((e.text || "").slice(0, 120)) + "</div></div>";
+  }).join("") || '<div class="ev-item"><div class="x">还没有汇报记录。</div></div>';
+}
+
+function renderSettings() {
+  const c = syncCfg(), a = aiCfg();
+  document.getElementById("s-token").value = c.token || "";
+  document.getElementById("s-gist").value = c.gistId || "";
+  document.getElementById("s-ai").value = a.key || "";
+  document.getElementById("s-miles").innerHTML = STATE.milestones.map((m, i) =>
+    '<div class="fld"><label>' + m.id + " · " + esc(m.title) + "</label>" +
+    '<input class="mile-date" data-i="' + i + '" value="' + esc(m.due) + '" placeholder="YYYY-MM-DD"></div>'
+  ).join("");
+}
+
+function renderAll() { renderToday(); renderProgress(); renderChat(); renderSettings(); }
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove("on"), 2200);
+}
+
+// =========================================================== 事件 ====
+function switchPage(p) {
+  document.querySelectorAll(".page").forEach(x => x.classList.remove("on"));
+  document.getElementById("p-" + p).classList.add("on");
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
+  document.getElementById("bar").classList.toggle("on", p === "chat");
+  if (p === "prog") renderProgress();
+  if (p === "set") renderSettings();
+  if (p === "chat") { renderChat(); setTimeout(() => document.getElementById("inp").focus(), 100); }
+}
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => switchPage(b.dataset.p));
+
+document.getElementById("btn-done").onclick = () => {
+  const track = STATE.milestones[0].done ? "lab1" : "lab2";
+  const info = applyAdvance(track);
+  if (!info) { toast("这条线已经清完了"); return; }
+  saveState();
+  toast("记上了 " + info.step + "：" + (info.finished ? "整节完成" : "继续下一小节"));
+  renderToday(); renderProgress();
+};
+
+document.getElementById("btn-send").onclick = send;
+const inp = document.getElementById("inp");
+inp.addEventListener("input", () => {
+  inp.style.height = "46px";
+  inp.style.height = Math.min(130, inp.scrollHeight) + "px";
+});
+inp.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); }
+});
+
+async function syncSave() {
+  const tk = document.getElementById("s-token").value.trim();
+  const gid = document.getElementById("s-gist").value.trim();
+  if (!tk) { setTokSt("✗ 先填 Token", "bad"); toast("先填 Token"); return; }
+  if (!gid) { setTokSt("✗ 还没有云存档 ID——先点「创建新的云存档」", "bad"); toast("先建一个云存档"); return; }
+  setTokSt("验证中…", "wait");
+  const v = await verifyToken(tk);
+  if (!v.ok) { setTokSt("✗ " + v.msg, "bad"); toast("Token 没通过验证"); return; }
+  setTokSt("✓ Token 有效（" + v.login + "），正在对账…", "good");
+  localStorage.setItem(LS_SYNC, JSON.stringify({ token: tk, gistId: gid }));
+  const ok = await doPull(true);
+  if (!ok) { setTokSt("✗ 读不到这个云存档 ID，检查是不是抄错了（要 32 位那串）", "bad"); return; }
+  await doPush();
+  setTokSt("✓ 已连接 " + v.login + "，两台设备的数据已合并", "good");
+  toast("同步完成");
+}
+
+document.getElementById("btn-sync").onclick = syncSave;
+
+document.getElementById("btn-verify").onclick = async () => {
+  const tk = document.getElementById("s-token").value.trim();
+  setTokSt("验证中…", "wait");
+  const v = await verifyToken(tk);
+  setTokSt(v.ok ? "✓ Token 有效，属于 GitHub 账号：" + v.login : "✗ " + v.msg, v.ok ? "good" : "bad");
+};
+
+document.getElementById("btn-mkgist").onclick = createGist;
+
+document.getElementById("btn-ai").onclick = () => {
+  const key = document.getElementById("s-ai").value.trim();
+  localStorage.setItem(LS_AI, JSON.stringify({ key: key }));
+  toast(key ? "AI Key 已保存" : "已清空，回到规则回话");
+};
+
+document.getElementById("btn-save-plan").onclick = () => {
+  document.querySelectorAll(".mile-date").forEach(el => {
+    const i = +el.dataset.i;
+    const v = el.value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) STATE.milestones[i].due = v;
+  });
+  saveState();
+  toast("计划已保存");
+  renderAll();
+};
+
+document.getElementById("btn-export").onclick = () => {
+  const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "督学小鲸娘备份-" + todayStr() + ".json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+};
+
+document.getElementById("btn-import").onclick = () => document.getElementById("file-in").click();
+document.getElementById("file-in").onchange = e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const s = JSON.parse(rd.result);
+      if (!s.tracks) throw new Error("格式不对");
+      STATE = s;
+      saveState(); renderAll();
+      toast("导入成功");
+    } catch (err) { toast("导入失败：" + err.message); }
+  };
+  rd.readAsText(f);
+};
+
+// =========================================================== 启动 ====
+renderAll();
+updateSyncDot();
+document.getElementById("bar").classList.remove("on");
+
+(async function boot() {
+  // 首次在这台设备打开：如果是从电脑上的服务打开的，先把命令行那份进度接过来
+  if (!localStorage.getItem(LS_STATE)) {
+    try {
+      const r = await fetch("/api/state", { cache: "no-store" });
+      if (r.ok) {
+        const s = await r.json();
+        if (s && s.tracks && s.tracks.lab2) {
+          STATE = s;
+          localStorage.setItem(LS_STATE, JSON.stringify(STATE));
+          renderAll();
+          toast("已接上电脑端的进度");
+        }
+      }
+    } catch (e) { /* 用手机流量或直接双击文件打开时会失败，忽略 */ }
+  }
+  const c = syncCfg();
+  if (c.token && c.gistId) {
+    const ok = await doPull(true);
+    if (ok) toast("已从云端同步");
+  }
+})();
+
+</script>
+</body>
+</html>
