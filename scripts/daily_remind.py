@@ -1,0 +1,159 @@
+# -*- coding: utf-8 -*-
+"""
+scripts/daily_remind.py —— 每天 20:00 由 GitHub Actions 跑，推一条微信。
+
+环境变量：
+    PUSHPLUS_TOKEN   必填，PushPlus 的 token（https://www.pushplus.plus）
+    GIST_ID          可选，云存档 ID（拿不到就用内置默认计划）
+    GIST_TOKEN       可选，有 gist 读权限的 token
+
+用法：
+    python scripts/daily_remind.py --dry    只打印不推送
+    python scripts/daily_remind.py          真推
+"""
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta, timezone
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+sys.path.insert(0, ROOT)
+import whale  # noqa: E402
+
+BJ = timezone(timedelta(hours=8))
+API = "https://api.github.com"
+GIST_FILE = "whale-state.json"
+
+
+def _get_json(url, token=None, timeout=20):
+    req = urllib.request.Request(url)
+    req.add_header("Accept", "application/vnd.github+json")
+    req.add_header("User-Agent", "whale-remind")
+    if token:
+        req.add_header("Authorization", "Bearer " + token)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
+def load_state():
+    """优先读云端存档，读不到就用内置默认计划。"""
+    gid = os.environ.get("GIST_ID", "").strip()
+    tk = os.environ.get("GIST_TOKEN", "").strip()
+    if gid and tk:
+        try:
+            j = _get_json("%s/gists/%s" % (API, gid), tk)
+            f = (j.get("files") or {}).get(GIST_FILE)
+            if f and f.get("content"):
+                st = json.loads(f["content"])
+                if st.get("tracks"):
+                    return st, "cloud"
+        except Exception as e:
+            print("  ! 读云端存档失败：%s" % e)
+    return json.loads(json.dumps(whale.DEFAULT_STATE)), "default"
+
+
+def build_message(state, src):
+    now = datetime.now(BJ)
+    task = whale.gen_today(state)
+    gap = whale.streak_gap(state)
+    m = whale.nearest_milestone(state)
+    p2 = whale.track_progress(state, "lab2")
+    p1 = whale.track_progress(state, "lab1")
+
+    head = "%s 还有 %d 天" % (m["id"], (datetime.strptime(m["due"], "%Y-%m-%d").date() - now.date()).days) if m else "里程碑全清"
+
+    # 主动开口：先看今天记没记，再看空窗多久
+    if whale.logged_today(state):
+        open_line = "今天已经记上了，明天接着来。"
+    elif gap >= 2:
+        open_line = "已经 %d 天没记了。别想着把落下的补回来，今天只做【保底】那件事，10 分钟也算。" % gap
+    elif gap == 1:
+        open_line = "昨天空了一天。别补进度，今天只做【保底】那一件。"
+    else:
+        open_line = "还没记过汇报。今天做完那一件，回来说一句就行，不用写长。"
+
+    tail = [
+        "**进度**：实验室2 %d/%d 小节 · 实验室1 %d/%d 小节" % (
+            p2["parts_done"], p2["total_parts"], p1["parts_done"], p1["total_parts"]),
+        "",
+        "📱 **两台设备都刷新一下**，顶部圆点变绿才算同步。",
+        "",
+        "💬 想细问、想说今天干了啥：[点这里打开](%s)" % APP_URL,
+        "",
+        "_%s · %s_" % (("云端进度" if src == "cloud" else "默认计划"), now.strftime("%m-%d %H:%M")),
+    ]
+
+    md = "\n".join([
+        "### 🐳 %s · %s" % (now.strftime("%Y-%m-%d"), whale.WEEKDAY_CN[(now.weekday())]),
+        "",
+        "**%s**" % head,
+        "",
+        "【今天】%s" % task["main"],
+        "",
+        "【保底】%s" % task["low"],
+        "",
+        "【别碰】%s" % task["avoid"],
+        "",
+        "---",
+        "",
+        open_line,
+        "",
+    ] + tail)
+    return md
+
+
+APP_URL = os.environ.get("APP_URL", "https://siyuezhu66.github.io/whale/app.html").strip()
+
+
+def send_pushplus(token, title, content):
+    body = json.dumps({
+        "token": token,
+        "title": title,
+        "content": content,
+        "template": "markdown",
+        "channel": "wechat",
+    }, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request("https://www.pushplus.plus/send", data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "whale-remind")
+    with urllib.request.urlopen(req, timeout=25) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
+def main():
+    dry = "--dry" in sys.argv
+    state, src = load_state()
+    md = build_message(state, src)
+    print(md)
+    print("-" * 50)
+
+    if dry:
+        print("  (dry run, 没有推送)")
+        return 0
+
+    token = os.environ.get("PUSHPLUS_TOKEN", "").strip()
+    if not token:
+        print("  ! 没有 PUSHPLUS_TOKEN，推不了")
+        return 1
+    try:
+        r = send_pushplus(token, "督学小鲸娘 · 今日三行", md)
+        print("  pushplus 返回：%s" % json.dumps(r, ensure_ascii=False)[:200])
+        code = r.get("code")
+        if code != 200:
+            print("  ! 推送失败，去 pushplus 看 token 对不对")
+            return 1
+        print("  ✓ 已推到微信")
+        return 0
+    except urllib.error.HTTPError as e:
+        print("  ! HTTP %s：%s" % (e.code, e.read().decode("utf-8", "replace")[:200]))
+        return 1
+    except Exception as e:
+        print("  ! 推送出错：%s: %s" % (type(e).__name__, e))
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
