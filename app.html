@@ -237,7 +237,9 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
     <div class="hint">不填就用本地规则回话，一样能判断。填了让回复更像人话。Key 只存在这台设备上。<br>
       获取：<a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com/api_keys</a></div>
     <div class="fld"><label>DeepSeek API Key</label><input id="s-ai" type="password" placeholder="sk-..." autocomplete="off"></div>
+    <div class="tokst" id="aist">还没测过。填了 Key 点下面「测试 AI」，看它到底通没通。</div>
     <button class="btn ghost" id="btn-ai">保存 Key</button>
+    <button class="btn ghost" id="btn-ai-test" style="margin-top:8px">测试 AI（发一句「你好」）</button>
 
     <div class="sec">计 划</div>
     <div class="hint">改里程碑日期（YYYY-MM-DD），改完点保存。</div>
@@ -796,34 +798,87 @@ async function applyCode() {
 }
 
 // =========================================================== AI ====
-async function aiSay(v, userText) {
+// AI 先判断意图（汇报/提问/加任务/闲聊/情绪），再按类别回应；规则引擎只兜底
+const AI_TYPES = ["report", "question", "request", "chat", "emotion"];
+function extractJson(s) {
+  s = String(s || "").replace(/```json/gi, "").replace(/```/g, "").trim();
+  const i = s.indexOf("{"), j = s.lastIndexOf("}");
+  if (i < 0 || j <= i) return null;
+  try { return JSON.parse(s.slice(i, j + 1)); } catch (e) { return null; }
+}
+async function aiAsk(text) {
   const c = aiCfg();
   if (!c.key) return null;
   const m = nearestMilestone();
   const left = m ? daysUntil(m.due) : 0;
-  const p2 = trackProgress("lab2");
-  const p1 = trackProgress("lab1");
+  const p2 = trackProgress("lab2"), p1 = trackProgress("lab1");
+  const t = genToday();
+  const [s2, , part2] = currentPart("lab2");
+  const [s1, , part1] = currentPart("lab1");
+  const recent = STATE.log.slice(-5).map(e =>
+    e.date.slice(5) + " " + e.verdict + "：" + (e.text || "").slice(0, 40)
+  ).join("\n") || "（还没有记录）";
+
   const sys = [
-    "你是「督学小鲸娘」，主人的督学助手。说话像同组学长：简短、直接、不夸人、不灌鸡汤，200 字以内。",
-    "今天是 " + todayStr() + " " + WEEKDAY_CN[weekdayIdx()] + "，距最近里程碑（" + (m ? m.id : "无") + "）还有 " + left + " 天。",
-    "实验室2 进度 " + p2.partsDone + "/" + p2.totalParts + " 小节；实验室1 进度 " + p1.partsDone + "/" + p1.totalParts + " 小节。",
-    "系统刚把这次汇报判为【" + v.verdict + "】，依据：" + ((v.evidence || []).join("；") || "无") + "。",
-    "你的任务：用一句话确认这个判断，再给一个明天能立刻做的具体动作。不要复述判断词，不要问超过一个问题，不要夸人。"
+    "你是「督学小鲸娘」，主人的督学助手兼教练。主人是工科大三，主线是实验室2（电机驱动：通信 + 闭环），保底线是实验室1（踝关节助力外骨骼）。",
+    "说话像同组学长：简短、直接、不夸人、不灌鸡汤，150 字以内，最多问一个问题。",
+    "",
+    "【今天】" + t.main,
+    "【保底】" + t.low,
+    "【别碰】" + t.avoid,
+    "【进度】lab2 " + p2.partsDone + "/" + p2.totalParts + " 小节（当前：" + (s2 ? s2.id + " " + part2.desc : "已清完") + "）；lab1 " + p1.partsDone + "/" + p1.totalParts + " 小节（当前：" + (s1 ? s1.id + " " + part1.desc : "已清完") + "）；M1 还有 " + left + " 天。",
+    "【最近记录】",
+    recent,
+    "",
+    "先判断主人这句话是哪一类：",
+    "report = 在说今天干了什么（抄了指令、看了手册、做了作业、测了一次）",
+    "question = 在问问题（效验是什么、这个字节什么意思、为什么跑不通）",
+    "request = 想改计划/加任务/开新方向（我想增加任务、能不能也做视觉）",
+    "chat = 打招呼、闲聊（你好、在吗、随便聊聊）",
+    "emotion = 自我怀疑、焦虑（我好菜、学不下去）",
+    "",
+    "然后按类型回应：",
+    "· report：判断真推进还是原地打转。标准很硬——有能拿出手的产物（截图/一页纸/一条指令/一条曲线/一个文件）才算真推进；只说看了、想明白了、学了一会儿 = 原地打转。没产物别夸。给一个明天能直接做的动作。",
+    "· question：**直接回答他问的那个问题**，大白话，能给例子就给例子。不要反问他进度，不要套「有没有东西能给师兄看」这句话。回答完可以补一句今天该干什么。",
+    "· request：要加新方向（视觉/建图/SLAM/ROS2/FOC/EtherCAT/PCB/深度学习）或跳到当前步骤更靠后的内容 → 明确拦下，一句话说清理由，给替代做法。只是把当前任务拆细（比如「把缺口再仔细找出来」）→ 答应，给出具体到 20 分钟能做的拆分。",
+    "· chat：轻松打个招呼，顺带说一句今天该干的那件事，别列清单。",
+    "· emotion：不给鸡汤。给事实——他已经会什么、离门槛差什么、还剩几天，然后给一个 10 分钟能做完的小动作。",
+    "",
+    "只输出一个 JSON 对象，不要代码块，不要多余文字：",
+    '{"type":"report|question|request|chat|emotion","verdict":"真推进|原地打转|受阻顺延|跑偏|自我怀疑|信息不足|无","evidence":["依据1"],"reply":"给主人的话"}'
   ].join("\n");
+
   try {
     const r = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + c.key },
       body: JSON.stringify({
-        model: "deepseek-chat", temperature: 0.7, max_tokens: 200,
-        messages: [{ role: "system", content: sys }, { role: "user", content: userText }]
+        model: "deepseek-chat", temperature: 0.5, max_tokens: 600,
+        response_format: { type: "json_object" },
+        messages: [{ role: "system", content: sys }, { role: "user", content: text }]
       })
     });
-    if (!r.ok) return null;
+    if (!r.ok) {
+      let hint = "HTTP " + r.status;
+      if (r.status === 401) hint = "Key 无效或过期（401）";
+      else if (r.status === 402) hint = "账户余额不足（402）";
+      else if (r.status === 429) hint = "请求太频繁（429）";
+      else if (r.status === 400) hint = "请求被拒（400）";
+      return { err: hint };
+    }
     const j = await r.json();
-    const txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
-    return txt ? txt.trim() : null;
-  } catch (e) { return null; }
+    const raw = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "";
+    const o = extractJson(raw);
+    if (!o || !o.reply) return { err: "AI 回复格式不对" };
+    return {
+      type: AI_TYPES.includes(o.type) ? o.type : "chat",
+      verdict: o.verdict || "无",
+      evidence: Array.isArray(o.evidence) ? o.evidence : [],
+      reply: String(o.reply).trim()
+    };
+  } catch (e) {
+    return { err: "连不上 DeepSeek：" + e.message };
+  }
 }
 
 // =========================================================== 聊天 ====
@@ -855,6 +910,33 @@ async function send() {
   if (!text) return;
   ta.value = ""; ta.style.height = "46px";
   CHAT.push({ who: "me", text: text });
+  renderChat();
+
+  // ---- 有 Key 就让 AI 先理解意图 ----
+  if (aiCfg().key) {
+    const a = await aiAsk(text);
+    if (a && a.err) {
+      toast("AI 没接上：" + a.err + "（这条先用规则回）");
+      ruleReply(text);
+      return;
+    }
+    if (a) {
+      const isReport = a.type === "report";
+      let extra = "";
+      if (isReport && a.verdict === "真推进") {
+        const info = applyAdvance(pickTrack(text));
+        if (info) extra = "\n已记 " + info.step + " 一间，" + (info.finished ? "整节完成。" : "下一小节继续。");
+      }
+      if (isReport || a.type === "emotion") record(text, a, isReport ? pickTrack(text) : null);
+      CHAT.push({ who: "bot", text: a.reply + extra, verdict: isReport ? a.verdict : "", evidence: a.evidence });
+      saveChat(); saveState(); renderChat(); renderToday(); renderProgress();
+      return;
+    }
+  }
+  ruleReply(text);
+}
+
+async function ruleReply(text) {
   const v = judge(text);
   const track = v.advance ? pickTrack(text) : null;
   let extra = "";
@@ -870,14 +952,6 @@ async function send() {
   record(text, v, track);
   CHAT.push({ who: "bot", text: v.reply + extra, verdict: v.verdict, evidence: v.evidence });
   saveChat(); saveState(); renderChat(); renderToday(); renderProgress();
-
-  if (aiCfg().key) {
-    const ai = await aiSay(v, text);
-    if (ai) {
-      CHAT[CHAT.length - 1].text = ai;
-      saveChat(); renderChat();
-    }
-  }
 }
 
 // =========================================================== 渲染 ====
@@ -1020,6 +1094,19 @@ document.getElementById("btn-ai").onclick = () => {
   const key = document.getElementById("s-ai").value.trim();
   localStorage.setItem(LS_AI, JSON.stringify({ key: key }));
   toast(key ? "AI Key 已保存" : "已清空，回到规则回话");
+};
+
+document.getElementById("btn-ai-test").onclick = async () => {
+  const key = document.getElementById("s-ai").value.trim();
+  const st = document.getElementById("aist");
+  if (!key) { st.textContent = "先填 Key"; st.className = "tokst bad"; return; }
+  localStorage.setItem(LS_AI, JSON.stringify({ key: key }));
+  st.textContent = "测试中…"; st.className = "tokst wait";
+  const a = await aiAsk("你好");
+  if (!a) { st.textContent = "✗ 没反应（可能没保存 Key）"; st.className = "tokst bad"; return; }
+  if (a.err) { st.textContent = "✗ " + a.err; st.className = "tokst bad"; return; }
+  st.textContent = "✓ AI 通了，把「你好」判成了 " + a.type + "：" + a.reply.slice(0, 40);
+  st.className = "tokst good";
 };
 
 document.getElementById("btn-save-plan").onclick = () => {
