@@ -3,7 +3,8 @@
 scripts/daily_remind.py —— 每天 20:00 由 GitHub Actions 跑，推一条微信。
 
 环境变量：
-    PUSHPLUS_TOKEN   必填，PushPlus 的 token（https://www.pushplus.plus）
+    PUSHPLUS_TOKEN   可选，PushPlus 的 token（https://www.pushplus.plus），与 WECOM_WEBHOOK 二选一
+    WECOM_WEBHOOK    可选，企业微信群机器人 Webhook 地址，与 PUSHPLUS_TOKEN 二选一
     GIST_ID          可选，云存档 ID（拿不到就用内置默认计划）
     GIST_TOKEN       可选，有 gist 读权限的 token
 
@@ -108,6 +109,18 @@ def build_message(state, src):
 APP_URL = os.environ.get("APP_URL", "https://siyuezhu66.github.io/whale/app.html").strip()
 
 
+def send_wecom(url, title, content):
+    body = json.dumps({
+        "msgtype": "markdown",
+        "markdown": {"content": "### " + title + "\n" + content},
+    }, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(url, data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "whale-remind")
+    with urllib.request.urlopen(req, timeout=25) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
 def send_pushplus(token, title, content):
     body = json.dumps({
         "token": token,
@@ -134,18 +147,26 @@ def main():
         print("  (dry run, 没有推送)")
         return 0
 
-    token = os.environ.get("PUSHPLUS_TOKEN", "").strip()
-    if not token:
-        print("  ! 没有 PUSHPLUS_TOKEN，推不了")
+    wecom = os.environ.get("WECOM_WEBHOOK", "").strip()
+    pp = os.environ.get("PUSHPLUS_TOKEN", "").strip()
+    if not wecom and not pp:
+        print("  ! 没有推送通道：WECOM_WEBHOOK（企业微信）或 PUSHPLUS_TOKEN（PushPlus）二选一")
         return 1
+    title = "督学小鲸娘 · 今日三行"
     try:
-        r = send_pushplus(token, "督学小鲸娘 · 今日三行", md)
-        print("  pushplus 返回：%s" % json.dumps(r, ensure_ascii=False)[:200])
-        code = r.get("code")
-        if code != 200:
-            print("  ! 推送失败，去 pushplus 看 token 对不对")
-            return 1
-        print("  ✓ 已推到微信")
+        if wecom:
+            r = send_wecom(wecom, title, md)
+            print("  企业微信返回：%s" % json.dumps(r, ensure_ascii=False)[:200])
+            if r.get("errcode") != 0:
+                print("  ! 推送失败，看 errmsg（webhook 失效 / key 抄错）")
+                return 1
+        else:
+            r = send_pushplus(pp, title, md)
+            print("  pushplus 返回：%s" % json.dumps(r, ensure_ascii=False)[:200])
+            if r.get("code") != 200:
+                print("  ! 推送失败（code 不是 200），多半是没实名或被限流")
+                return 1
+        print("  ✓ 已推到手机")
         return 0
     except urllib.error.HTTPError as e:
         print("  ! HTTP %s：%s" % (e.code, e.read().decode("utf-8", "replace")[:200]))
