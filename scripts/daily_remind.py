@@ -2,9 +2,10 @@
 """
 scripts/daily_remind.py —— 每天 20:00 由 GitHub Actions 跑，推一条微信。
 
-环境变量：
-    PUSHPLUS_TOKEN   可选，PushPlus 的 token（https://www.pushplus.plus），与 WECOM_WEBHOOK 二选一
-    WECOM_WEBHOOK    可选，企业微信群机器人 Webhook 地址，与 PUSHPLUS_TOKEN 二选一
+环境变量（三选一，按优先级）：
+    WXPUSHER_TOKEN + WXPUSHER_UID   推荐，微信里直接收，不用实名
+    WECOM_WEBHOOK                   备选，企业微信群机器人
+    PUSHPLUS_TOKEN                  备选，PushPlus（要实名）
     GIST_ID          可选，云存档 ID（拿不到就用内置默认计划）
     GIST_TOKEN       可选，有 gist 读权限的 token
 
@@ -121,6 +122,22 @@ def send_wecom(url, title, content):
         return json.loads(r.read().decode("utf-8", "replace"))
 
 
+def send_wxpusher(app_token, uid, title, content):
+    body = json.dumps({
+        "appToken": app_token,
+        "content": content,
+        "summary": title,
+        "contentType": 3,
+        "uids": [uid],
+    }, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        "https://wxpusher.zjiecode.com/api/send/message", data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "whale-remind")
+    with urllib.request.urlopen(req, timeout=25) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
 def send_pushplus(token, title, content):
     body = json.dumps({
         "token": token,
@@ -149,12 +166,20 @@ def main():
 
     wecom = os.environ.get("WECOM_WEBHOOK", "").strip()
     pp = os.environ.get("PUSHPLUS_TOKEN", "").strip()
-    if not wecom and not pp:
-        print("  ! 没有推送通道：WECOM_WEBHOOK（企业微信）或 PUSHPLUS_TOKEN（PushPlus）二选一")
+    wx_tok = os.environ.get("WXPUSHER_TOKEN", "").strip()
+    wx_uid = os.environ.get("WXPUSHER_UID", "").strip()
+    if not wecom and not pp and not (wx_tok and wx_uid):
+        print("  ! 没有推送通道：WXPUSHER_TOKEN+WXPUSHER_UID / WECOM_WEBHOOK / PUSHPLUS_TOKEN 三选一")
         return 1
     title = "督学小鲸娘 · 今日三行"
     try:
-        if wecom:
+        if wx_tok and wx_uid:
+            r = send_wxpusher(wx_tok, wx_uid, title, md)
+            print("  WxPusher 返回：%s" % json.dumps(r, ensure_ascii=False)[:200])
+            if r.get("code") != 1000:
+                print("  ! 推送失败，看 msg（AppToken / UID 抄错，或没关注公众号）")
+                return 1
+        elif wecom:
             r = send_wecom(wecom, title, md)
             print("  企业微信返回：%s" % json.dumps(r, ensure_ascii=False)[:200])
             if r.get("errcode") != 0:
