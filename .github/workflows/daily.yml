@@ -20,6 +20,7 @@ jobs:
 
       - name: 生成并推送今日三行
         env:
+          WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
           WXPUSHER_TOKEN: ${{ secrets.WXPUSHER_TOKEN }}
           WXPUSHER_UID: ${{ secrets.WXPUSHER_UID }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
