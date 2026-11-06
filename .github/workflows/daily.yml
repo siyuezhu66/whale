@@ -1,0 +1,26 @@
+name: daily-remind
+
+# 每天北京时间 20:00 推一条到微信
+# 注意：GitHub 的定时任务用 UTC，且免费账号可能延迟 5~20 分钟
+
+on:
+  schedule:
+    - cron: "0 12 * * *"        # UTC 12:00 = 北京时间 20:00
+  workflow_dispatch:            # 也可以手动点一下立即运行
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 生成并推送今日三行
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: python scripts/daily_remind.py
