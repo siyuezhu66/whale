@@ -2,10 +2,11 @@
 """
 scripts/daily_remind.py —— 每天 20:00 由 GitHub Actions 跑，推一条微信。
 
-环境变量（三选一，按优先级）：
-    WXPUSHER_TOKEN + WXPUSHER_UID   推荐，微信里直接收，不用实名
-    WECOM_WEBHOOK                   备选，企业微信群机器人
-    PUSHPLUS_TOKEN                  备选，PushPlus（要实名）
+环境变量（四选一，按优先级）：
+    WXPUSHER_SPT                    推荐：扫码拿 SPT，不用注册、不用实名
+    WXPUSHER_TOKEN + WXPUSHER_UID   备选：标准推送（要先建应用）
+    WECOM_WEBHOOK                   备选：企业微信群机器人
+    PUSHPLUS_TOKEN                  备选：PushPlus（要实名）
     GIST_ID          可选，云存档 ID（拿不到就用内置默认计划）
     GIST_TOKEN       可选，有 gist 读权限的 token
 
@@ -122,6 +123,22 @@ def send_wecom(url, title, content):
         return json.loads(r.read().decode("utf-8", "replace"))
 
 
+def send_spt(spt, title, content):
+    body = json.dumps({
+        "content": content,
+        "summary": title,
+        "contentType": 3,
+        "spt": spt,
+    }, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        "https://wxpusher.zjiecode.com/api/send/message/simple-push",
+        data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "whale-remind")
+    with urllib.request.urlopen(req, timeout=25) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
 def send_wxpusher(app_token, uid, title, content):
     body = json.dumps({
         "appToken": app_token,
@@ -164,16 +181,23 @@ def main():
         print("  (dry run, 没有推送)")
         return 0
 
+    spt = os.environ.get("WXPUSHER_SPT", "").strip()
     wecom = os.environ.get("WECOM_WEBHOOK", "").strip()
     pp = os.environ.get("PUSHPLUS_TOKEN", "").strip()
     wx_tok = os.environ.get("WXPUSHER_TOKEN", "").strip()
     wx_uid = os.environ.get("WXPUSHER_UID", "").strip()
-    if not wecom and not pp and not (wx_tok and wx_uid):
-        print("  ! 没有推送通道：WXPUSHER_TOKEN+WXPUSHER_UID / WECOM_WEBHOOK / PUSHPLUS_TOKEN 三选一")
+    if not spt and not wecom and not pp and not (wx_tok and wx_uid):
+        print("  ! 没有推送通道：WXPUSHER_SPT / WXPUSHER_TOKEN+UID / WECOM_WEBHOOK / PUSHPLUS_TOKEN 四选一")
         return 1
     title = "督学小鲸娘 · 今日三行"
     try:
-        if wx_tok and wx_uid:
+        if spt:
+            r = send_spt(spt, title, md)
+            print("  WxPusher(SPT) 返回：%s" % json.dumps(r, ensure_ascii=False)[:200])
+            if r.get("code") != 1000 and not r.get("success"):
+                print("  ! 推送失败，看 msg（SPT 抄错，或没扫码关注）")
+                return 1
+        elif wx_tok and wx_uid:
             r = send_wxpusher(wx_tok, wx_uid, title, md)
             print("  WxPusher 返回：%s" % json.dumps(r, ensure_ascii=False)[:200])
             if r.get("code") != 1000:
