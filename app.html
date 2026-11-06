@@ -32,6 +32,10 @@ body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-se
 .brand{font-weight:800;font-size:18px;letter-spacing:.3px}
 .brand i{color:var(--tek);font-style:normal}
 .sync{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.build{font-size:11px;color:var(--dim);opacity:.8;cursor:pointer;border-bottom:1px dashed rgba(255,255,255,.18);padding-bottom:1px}
+.build:hover{color:var(--tek);border-bottom-color:var(--tek)}
+.upd-v{font-weight:700;font-size:11.5px;color:var(--tek)}
+.upd-new{display:inline-block;font-size:10px;background:var(--tek);color:#04202a;border-radius:6px;padding:1px 6px;margin-left:5px;font-weight:800}
 .dot{width:8px;height:8px;border-radius:50%;background:#5a6b8c;transition:.2s}
 .dot.ok{background:var(--tek);box-shadow:0 0 8px var(--tek)}
 .dot.err{background:var(--pink)}
@@ -149,7 +153,7 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
 
 <div class="top">
   <div class="brand">🐳 督学<i>小鲸娘</i></div>
-  <div class="sync"><span class="dot" id="dot"></span><span id="syncTxt">本地</span></div>
+  <div class="sync"><span class="dot" id="dot"></span><span id="syncTxt">本地</span><span class="build" id="build" title="点这里看更新日志"></span></div>
 </div>
 
 <main>
@@ -250,7 +254,11 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
     <button class="btn ghost" id="btn-export">导出备份文件</button>
     <button class="btn ghost" id="btn-import" style="margin-top:10px">从备份导入</button>
     <input type="file" id="file-in" accept="application/json" style="display:none">
-    <div class="hint" style="margin-top:14px">版本 2.0 · 引擎在本地跑，不需要联网也能用</div>
+    <div class="sec">更 新 日 志</div>
+    <div id="upd"></div>
+    <button class="btn ghost" id="btn-check-upd" style="margin-top:10px">检查有没有新版本</button>
+    <div class="hint" style="margin-top:10px">本鲸鱼娘改完就推上线，这里能看到最近改了什么、多久前改的。<br>
+      引擎在本地跑，不联网也能用。</div>
   </section>
 </main>
 
@@ -352,6 +360,53 @@ function esc(s) { return String(s == null ? "" : s).replace(/&/g,"&amp;").replac
 const LS_STATE = "whale_state_v2";
 const LS_SYNC = "whale_sync_v2";
 const LS_AI = "whale_ai_v2";
+
+// =========================================================== 版本 ====
+// 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
+const BUILD = "2026-11-06T21:13:00+08:00";
+const CHANGELOG = [
+  { t: "2026-11-06T21:13:00+08:00", v: "2.4", items: [
+      "加了更新日志：顶栏能看多久前更新，设置页有完整清单",
+      "加了「检查有没有新版本」按钮"
+  ]},
+  { t: "2026-11-06T20:50:00+08:00", v: "2.3", items: [
+      "AI 改成先听懂再回应：分「汇报 / 提问 / 加任务 / 闲聊 / 情绪」五类",
+      "问它问题会直接答，不再反问你进度",
+      "想加新方向会被拦，想把当前任务拆细会被答应",
+      "AI 连不上时会明确报原因，不再假装有回复",
+      "设置页加了「测试 AI」按钮"
+  ]},
+  { t: "2026-11-05T23:10:00+08:00", v: "2.2", items: [
+      "加了同步码：一台设备生成一串码，另一台粘贴就能登进来",
+      "桌面窗口拉宽时内容跟着变宽，不再挤成一条"
+  ]},
+  { t: "2026-11-05T22:20:00+08:00", v: "2.1", items: [
+      "海底背景 + 上升气泡 + Q 版鲸娘",
+      "每天换一句问候"
+  ]},
+  { t: "2026-11-05T21:50:00+08:00", v: "2.0", items: [
+      "单文件 App：今天 / 对话 / 进度 / 设置 四个页签",
+      "GitHub Gist 云同步，手机电脑共用一份进度"
+  ]},
+  { t: "2026-11-05T20:00:00+08:00", v: "1.0", items: [
+      "第一版：三行任务 + 六种判定 + 进度记录（命令行版 whale.py）"
+  ]}
+];
+
+function relTime(iso) {
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return String(iso);
+  const d = Date.now() - t;
+  if (d < 60000) return "刚刚";
+  const m = Math.floor(d / 60000);
+  if (m < 60) return m + " 分钟前";
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + " 小时前";
+  const dd = Math.floor(h / 24);
+  if (dd < 30) return dd + " 天前";
+  const dt = new Date(t);
+  return (dt.getMonth() + 1) + "月" + dt.getDate() + "日";
+}
 
 function loadState() {
   try {
@@ -1017,7 +1072,39 @@ function renderSettings() {
   ).join("");
 }
 
-function renderAll() { renderToday(); renderProgress(); renderChat(); renderSettings(); }
+function renderChangelog() {
+  const box = document.getElementById("upd");
+  if (!box) return;
+  box.innerHTML = CHANGELOG.map((e, i) => {
+    const isNew = i === 0;
+    return '<div class="ev-item"><div class="d">' + esc(relTime(e.t)) + "</div>" +
+      '<div class="k"><span class="upd-v">v' + esc(e.v) + "</span>" +
+      (isNew ? '<span class="upd-new">最新</span>' : "") + "</div>" +
+      '<div class="x">' + e.items.map(esc).join("<br>") + "</div></div>";
+  }).join("");
+  const b = document.getElementById("build");
+  if (b) b.textContent = "v" + CHANGELOG[0].v + " · " + relTime(BUILD);
+}
+
+async function checkUpdate() {
+  if (location.protocol === "file:") { toast("本地文件打开没法检查，刷新就是最新"); return; }
+  toast("检查中…");
+  try {
+    const r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
+    const txt = await r.text();
+    const m = txt.match(/const BUILD\s*=\s*"([^"]+)"/);
+    if (!m) { toast("读不到线上版本号"); return; }
+    if (m[1] > BUILD) {
+      toast("线上有新版本（" + relTime(m[1]) + "），刷新一下页面");
+    } else {
+      toast("已经是最新版（" + relTime(BUILD) + "更新）");
+    }
+  } catch (e) {
+    toast("检查失败：" + e.message);
+  }
+}
+
+function renderAll() { renderToday(); renderProgress(); renderChat(); renderSettings(); renderChangelog(); }
 
 function toast(msg) {
   const t = document.getElementById("toast");
@@ -1108,6 +1195,17 @@ document.getElementById("btn-ai-test").onclick = async () => {
   st.textContent = "✓ AI 通了，把「你好」判成了 " + a.type + "：" + a.reply.slice(0, 40);
   st.className = "tokst good";
 };
+
+document.getElementById("btn-check-upd").onclick = checkUpdate;
+document.getElementById("build").onclick = () => {
+  switchPage("set");
+  const box = document.getElementById("upd");
+  setTimeout(() => box && box.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+};
+setInterval(() => {
+  const b = document.getElementById("build");
+  if (b) b.textContent = "v" + CHANGELOG[0].v + " · " + relTime(BUILD);
+}, 60000);
 
 document.getElementById("btn-save-plan").onclick = () => {
   document.querySelectorAll(".mile-date").forEach(el => {
