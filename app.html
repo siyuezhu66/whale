@@ -245,6 +245,14 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
     <button class="btn ghost" id="btn-ai">保存 Key</button>
     <button class="btn ghost" id="btn-ai-test" style="margin-top:8px">测试 AI（发一句「你好」）</button>
 
+    <div class="sec">知 识 库</div>
+    <div class="hint">把电机手册、课程笔记、师兄给的资料丢进来（txt / md / csv）。<br>
+      之后问专业问题，AI 会先查这里，再答；查不到会直说不知道，不瞎编。<br>
+      资料只存在这台设备的浏览器里，不上传任何服务器。<b>PDF 请先另存成 txt</b>。</div>
+    <div class="fld"><label>上传资料（可多选）</label><input type="file" id="kb-in" accept=".txt,.md,.markdown,.csv,.json" multiple></div>
+    <div id="kb-list"></div>
+    <button class="btn ghost" id="btn-kb-clear" style="margin-top:10px">清空知识库</button>
+
     <div class="sec">计 划</div>
     <div class="hint">改里程碑日期（YYYY-MM-DD），改完点保存。</div>
     <div id="s-miles"></div>
@@ -363,8 +371,14 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-06T21:13:00+08:00";
+const BUILD = "2026-11-06T21:42:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-06T21:42:00+08:00", v: "2.5", items: [
+      "设置页加了「知识库」：手册、笔记、课件丢进去（txt / md / csv）",
+      "问专业问题时 AI 先查你的资料再答，查不到就说不知道，不瞎编",
+      "检索用中文二字分词，纯本地，不联网也不上传",
+      "修了分词把中文拆成单字、导致检索不准的问题"
+  ]},
   { t: "2026-11-06T21:13:00+08:00", v: "2.4", items: [
       "加了更新日志：顶栏能看多久前更新，设置页有完整清单",
       "加了「检查有没有新版本」按钮"
@@ -408,14 +422,93 @@ function relTime(iso) {
   return (dt.getMonth() + 1) + "月" + dt.getDate() + "日";
 }
 
+// =========================================================== 知识库 ====
+const LS_KB = "whale_kb_v1";
+let KB = [];
+try { KB = JSON.parse(localStorage.getItem(LS_KB) || "[]"); } catch (e) { KB = []; }
+if (!Array.isArray(KB)) KB = [];
+
+function saveKB() {
+  try { localStorage.setItem(LS_KB, JSON.stringify(KB)); }
+  catch (e) { toast("知识库太大了，浏览器存不下，先删几份旧资料"); }
+}
+// 中文按二字切词 + 英文数字按词。不用任何库，够检索用。
+function tokenizeCN(s) {
+  const out = [];
+  const re = /[\u4e00-\u9fa5]+|[a-z0-9]+/g;
+  let m;
+  const str = String(s || "").toLowerCase();
+  while ((m = re.exec(str)) !== null) {
+    const w = m[0];
+    if (/[\u4e00-\u9fa5]/.test(w)) {
+      if (w.length === 1) out.push(w);
+      for (let i = 0; i < w.length - 1; i++) out.push(w.slice(i, i + 2));
+    } else out.push(w);
+  }
+  return out;
+}
+function scoreChunk(qToks, text) {
+  const tf = {};
+  tokenizeCN(text).forEach(t => { tf[t] = (tf[t] || 0) + 1; });
+  let s = 0, hit = 0;
+  const seen = {};
+  qToks.forEach(t => {
+    if (seen[t]) return;
+    seen[t] = 1;
+    if (tf[t]) { hit++; s += Math.log(1 + tf[t]); }
+  });
+  if (!hit) return 0;
+  return s * (hit / qToks.length);
+}
+function chunkText(text, size) {
+  size = size || 480;
+  const paras = String(text || "").split(/\n{2,}/).map(x => x.trim()).filter(Boolean);
+  const out = [];
+  let buf = "";
+  paras.forEach(p => {
+    if (buf && (buf + "\n" + p).length > size) { out.push(buf); buf = p; }
+    else buf = buf ? buf + "\n" + p : p;
+  });
+  if (buf) out.push(buf);
+  return out;
+}
+function searchKB(query, topK) {
+  if (!KB.length) return [];
+  const qToks = tokenizeCN(query);
+  if (!qToks.length) return [];
+  const hits = [];
+  KB.forEach(doc => {
+    chunkText(doc.text).forEach(ch => {
+      const s = scoreChunk(qToks, ch);
+      if (s > 0) hits.push({ title: doc.title, text: ch, score: s });
+    });
+  });
+  hits.sort((a, b) => b.score - a.score);
+  return hits.slice(0, topK || 3);
+}
+function renderKB() {
+  const box = document.getElementById("kb-list");
+  if (!box) return;
+  if (!KB.length) {
+    box.innerHTML = '<div class="hint">还是空的。把手册、笔记、课件丢进来（txt / md / csv）。</div>';
+    return;
+  }
+  box.innerHTML = KB.map((d, i) =>
+    '<div class="ev-item"><div class="d">' + Math.round(d.text.length / 100) / 10 + "k 字</div>" +
+    '<div class="k">' + esc(d.title) + "</div>" +
+    '<div class="x" style="display:flex;justify-content:space-between;gap:10px">' +
+    "<span>" + esc(d.text.slice(0, 70).replace(/\n/g, " ")) + "…</span>" +
+    '<a data-kb-del="' + i + '" style="color:var(--pink);cursor:pointer;flex:0 0 auto">删掉</a></div></div>'
+  ).join("");
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(LS_STATE);
     if (raw) { const s = JSON.parse(raw); if (s && s.tracks) return s; }
   } catch (e) {}
   return clone(DEFAULT_STATE);
-}
-let STATE = loadState();
+}let STATE = loadState();
 let dirty = false;
 
 function saveState(silent) {
@@ -901,7 +994,14 @@ async function aiAsk(text) {
     "",
     "只输出一个 JSON 对象，不要代码块，不要多余文字：",
     '{"type":"report|question|request|chat|emotion","verdict":"真推进|原地打转|受阻顺延|跑偏|自我怀疑|信息不足|无","evidence":["依据1"],"reply":"给主人的话"}'
-  ].join("\n");
+  ];
+  const kbHits = searchKB(text, 3);
+  if (kbHits.length) {
+    sys.push("");
+    sys.push("【知识库参考资料】以下是从主人上传的资料里检索到的片段。回答专业问题时优先依据它，别编；引用时说清是哪份资料，不要整段照抄：");
+    kbHits.forEach((k, i) => sys.push("(" + (i + 1) + ") 《" + k.title + "》 " + k.text.slice(0, 600)));
+  }
+  const sysText = sys.join("\n");
 
   try {
     const r = await fetch("https://api.deepseek.com/chat/completions", {
@@ -910,7 +1010,7 @@ async function aiAsk(text) {
       body: JSON.stringify({
         model: "deepseek-chat", temperature: 0.5, max_tokens: 600,
         response_format: { type: "json_object" },
-        messages: [{ role: "system", content: sys }, { role: "user", content: text }]
+        messages: [{ role: "system", content: sysText }, { role: "user", content: text }]
       })
     });
     if (!r.ok) {
@@ -1070,6 +1170,7 @@ function renderSettings() {
     '<div class="fld"><label>' + m.id + " · " + esc(m.title) + "</label>" +
     '<input class="mile-date" data-i="' + i + '" value="' + esc(m.due) + '" placeholder="YYYY-MM-DD"></div>'
   ).join("");
+  renderKB();
 }
 
 function renderChangelog() {
@@ -1181,6 +1282,44 @@ document.getElementById("btn-ai").onclick = () => {
   const key = document.getElementById("s-ai").value.trim();
   localStorage.setItem(LS_AI, JSON.stringify({ key: key }));
   toast(key ? "AI Key 已保存" : "已清空，回到规则回话");
+};
+
+// 知识库：上传 / 删除 / 清空
+document.getElementById("kb-in").onchange = async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = "";
+  if (!files.length) return;
+  let ok = 0;
+  for (const f of files) {
+    if (f.size > 400 * 1024) { toast(f.name + " 太大了（>400k），先切小份再传"); continue; }
+    let text = "";
+    try { text = await f.text(); } catch (err) { toast("读不了 " + f.name); continue; }
+    if (!text.trim()) { continue; }
+    KB.push({
+      title: f.name.replace(/\.[^.]+$/, ""),
+      text: text,
+      added: new Date().toISOString()
+    });
+    ok++;
+  }
+  saveKB(); renderKB();
+  toast(ok ? ("知识库 +" + ok + " 份") : "没读到可用内容");
+};
+
+document.getElementById("kb-list").onclick = (e) => {
+  const t = e.target;
+  const del = t.getAttribute && t.getAttribute("data-kb-del");
+  if (del === null || del === undefined || del === "") return;
+  KB.splice(+del, 1);
+  saveKB(); renderKB();
+  toast("删掉了");
+};
+
+document.getElementById("btn-kb-clear").onclick = () => {
+  if (!KB.length) { toast("本来就是空的"); return; }
+  if (!confirm("确定清空全部 " + KB.length + " 份资料？")) return;
+  KB = []; saveKB(); renderKB();
+  toast("清空了");
 };
 
 document.getElementById("btn-ai-test").onclick = async () => {
