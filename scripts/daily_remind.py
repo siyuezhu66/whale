@@ -68,6 +68,15 @@ def build_message(state, src):
 
     head = "%s 还有 %d 天" % (m["id"], (datetime.strptime(m["due"], "%Y-%m-%d").date() - now.date()).days) if m else "里程碑全清"
 
+    # 一天三次，口吻跟着时段走
+    h = now.hour
+    if h < 12:
+        slot, slot_line = "morning", "早上。今天只盯这一件，做完就算赢，不用想第二步。"
+    elif h < 18:
+        slot, slot_line = "afternoon", "下午了。上午那件动了吗？动了就往下推，没动就从【保底】开始，10 分钟也算数。"
+    else:
+        slot, slot_line = "evening", "晚上收尾。今天有没有一个能拿给师兄看的东西（截图 / 一页笔记 / 一条曲线）？"
+
     # 主动开口：先看今天记没记，再看空窗多久
     if whale.logged_today(state):
         open_line = "今天已经记上了，明天接着来。"
@@ -101,6 +110,8 @@ def build_message(state, src):
         "【别碰】%s" % task["avoid"],
         "",
         "---",
+        "",
+        slot_line,
         "",
         open_line,
         "",
@@ -189,7 +200,8 @@ def main():
     if not spt and not wecom and not pp and not (wx_tok and wx_uid):
         print("  ! 没有推送通道：WXPUSHER_SPT / WXPUSHER_TOKEN+UID / WECOM_WEBHOOK / PUSHPLUS_TOKEN 四选一")
         return 1
-    title = "督学小鲸娘 · 今日三行"
+    _h = datetime.now(BJ).hour
+    title = "🐳 早上 · 今天三行" if _h < 12 else ("🐳 下午 · 检查一下" if _h < 18 else "🐳 晚上 · 收尾看看")
     try:
         if spt:
             r = send_spt(spt, title, md)
