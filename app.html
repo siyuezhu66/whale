@@ -505,8 +505,12 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T19:24:00+08:00";
+const BUILD = "2026-11-08T19:36:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-08T19:36:00+08:00", v: "3.4", items: [
+      "清掉之前为了调日历颜色塞进去的演示记录（评语写着「演示数据」的那些），看着像你真干过，容易误会",
+      "以后从本地、云端、导入文件三条路进来的存档都会自动过一遍这个清理"
+  ]},
   { t: "2026-11-08T19:24:00+08:00", v: "3.3", items: [
       "记一笔的时候可以附图：截图或拍照，最多 4 张，自动压到 720px 再存",
       "日历点开某天，能看到当时留下的证据图，点图看大图",
@@ -676,10 +680,26 @@ function renderKB() {
   ).join("");
 }
 
+// 早期为了跑通日历塞进去的演示记录：id 形如 t0/t1…，评语写着「（演示数据）」。
+// 一律清掉，免得看着像主人真的干过。
+function cleanDemo(st) {
+  if (!st || !Array.isArray(st.sessions)) return false;
+  const kept = st.sessions.filter(x => x && !(/^t\d+$/.test(String(x.id || "")) || String(x.feedback || "").indexOf("（演示数据）") >= 0));
+  if (kept.length === st.sessions.length) return false;
+  st.sessions = kept;
+  return true;
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(LS_STATE);
-    if (raw) { const s = JSON.parse(raw); if (s && s.tracks) return s; }
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && s.tracks) {
+        if (cleanDemo(s)) { try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e2) {} }
+        return s;
+      }
+    }
   } catch (e) {}
   return clone(DEFAULT_STATE);
 }let STATE = loadState();
@@ -1077,6 +1097,7 @@ async function doPull(merge) {
     const f = j.files && j.files["whale-state.json"];
     if (!f || !f.content) throw new Error("存档里没有 whale-state.json");
     const remote = JSON.parse(f.content);
+    cleanDemo(remote);
     if (merge) {
       STATE = mergeStates(STATE, remote);
       localStorage.setItem(LS_STATE, JSON.stringify(STATE));
@@ -2126,6 +2147,7 @@ document.getElementById("file-in").onchange = e => {
     try {
       const s = JSON.parse(rd.result);
       if (!s.tracks) throw new Error("格式不对");
+      cleanDemo(s);
       STATE = s;
       saveState(); renderAll();
       toast("导入成功");
@@ -2162,6 +2184,7 @@ document.getElementById("bar").classList.remove("on");
       if (r.ok) {
         const s = await r.json();
         if (s && s.tracks && s.tracks.lab2) {
+          cleanDemo(s);
           STATE = s;
           localStorage.setItem(LS_STATE, JSON.stringify(STATE));
           renderAll();
