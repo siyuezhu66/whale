@@ -468,6 +468,11 @@ const LAB2_HINT = ["电机","协议","串口","指令","曲线","闭环","电流
 // =========================================================== 工具 ====
 const pad = n => String(n).padStart(2, "0");
 function todayStr(d) { d = d || new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function localISO(ts) {
+  const d = new Date(ts);
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" +
+    pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+}
 function todayDate() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
 function parseDay(s) { const p = s.split("-").map(Number); return new Date(p[0], p[1] - 1, p[2]); }
 function daysUntil(s) { return Math.round((parseDay(s) - todayDate()) / 86400000); }
@@ -1636,8 +1641,8 @@ function submitForm() {
   const min = Math.max(1, Math.round(elapsedMs() / 60000));
   const s = {
     id: "s" + Date.now(),
-    start: new Date(Date.now() - elapsedMs()).toISOString(),
-    end: new Date().toISOString(),
+    start: localISO(Date.now() - elapsedMs()),
+    end: localISO(Date.now()),
     min: min,
     target: (TIMER && TIMER.target) || 45,
     part: (TIMER && TIMER.part) || "",
