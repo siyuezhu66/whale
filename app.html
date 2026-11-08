@@ -173,6 +173,8 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
 .cal .d.lv2{background:#f2c94c;color:#2b2000}
 .cal .d.lv3{background:#4a9eff;color:#001428}
 .cal .d.lv4{background:#2ee08a;color:#00220f}
+.cal .d.future{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.07);color:rgba(255,255,255,.18)}
+.cal .d.today{box-shadow:0 0 0 2px var(--tek) inset}
 .cal .d.sel{outline:2px solid var(--tek);outline-offset:2px}
 .cal .d .cnt{position:absolute;top:3px;right:5px;font-size:9px;font-style:normal;opacity:.65}
 .calleg{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0 6px;font-size:11.5px;color:var(--dim)}
@@ -488,7 +490,7 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T18:50:00+08:00";
+const BUILD = "2026-11-08T18:57:00+08:00";
 const CHANGELOG = [
   { t: "2026-11-08T18:42:00+08:00", v: "3.2", items: [
       "学习记录改成月历：一天一格，点哪天看哪天的细节，不用再往下滚一长串",
@@ -1543,8 +1545,10 @@ function renderHistory() {
     const list = map[key];
     const sc = dayScore(list);
     const lv = dayLevel(sc);
+    const isFut = key > todayStr();
     cells.push('<div class="d lv' + lv + (key === CAL_SEL ? " sel" : "") + (list ? " has" : "") +
-      '" data-day="' + key + '" title="' + key + " · " + (list ? DAYLV[lv] + " " + sc + " 分 · " + list.length + " 次" : "没干活") + '">' +
+      (isFut ? " future" : "") + (key === todayStr() ? " today" : "") +
+      '" data-day="' + key + '" title="' + key + " · " + (list ? DAYLV[lv] + " " + sc + " 分 · " + list.length + " 次" : isFut ? "还没到" : "没干活") + '">' +
       d + (list && list.length > 1 ? '<i class="cnt">' + list.length + "</i>" : "") + "</div>");
   }
   document.getElementById("lrn-cal").innerHTML = cells.join("");
@@ -1552,6 +1556,11 @@ function renderHistory() {
 }
 function renderDay() {
   const box = document.getElementById("lrn-hist");
+  if (CAL_SEL > todayStr()) {
+    box.innerHTML = '<div class="card" style="padding:16px"><div class="daytop"><b>' + CAL_SEL +
+      '</b><span class="badge lv0">还没到</span></div><div class="hint" style="margin-top:8px">这天还没到，先把今天的事做完。</div></div>';
+    return;
+  }
   const list = dayMap()[CAL_SEL] || [];
   if (!list.length) {
     box.innerHTML = '<div class="card" style="padding:16px"><div class="daytop"><b>' + CAL_SEL +
