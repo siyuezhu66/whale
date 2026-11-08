@@ -147,6 +147,21 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
   #p-today>.btn{margin-top:2px}
 }
 @media(max-width:380px){.mascot{width:88px;height:78px}.hero .say b{font-size:13.5px}.hero .say span{font-size:11.5px}}
+.timer{font-family:ui-monospace,Consolas,monospace;font-size:40px;text-align:center;letter-spacing:3px;margin:14px 0 8px;color:var(--txt);font-variant-numeric:tabular-nums}
+.timer.run{color:var(--tek)}
+.chip{display:inline-block;padding:8px 13px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--dim);margin:6px 7px 0 0;font-size:13px;cursor:pointer;user-select:none}
+.chip.on{border-color:var(--tek);color:var(--tek);background:rgba(65,227,211,.13)}
+.stars span{font-size:26px;cursor:pointer;opacity:.26;margin-right:4px;transition:opacity .15s}
+.stars span.on{opacity:1}
+.sess{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 15px;margin-bottom:10px}
+.sess .top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--dim);margin-bottom:7px;gap:8px}
+.sess .sc{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sess .body{font-size:13.5px;line-height:1.55}
+.sess .meta{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5}
+.stat3{display:flex;gap:9px;margin-bottom:10px}
+.stat3 div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center}
+.stat3 b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
+.stat3 span{font-size:11px;color:var(--dim)}
 </style>
 </head>
 <body>
@@ -200,6 +215,49 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
 
   <section class="page" id="p-chat">
     <div class="msgs" id="msgs"></div>
+  </section>
+
+  <section class="page" id="p-learn">
+    <div class="headline" id="lrn-head"></div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
+        <b id="lrn-task" style="font-size:14.5px">—</b>
+        <span id="lrn-target" style="font-size:12px;color:var(--dim);white-space:nowrap"></span>
+      </div>
+      <div id="lrn-out" style="font-size:12.5px;color:var(--dim);line-height:1.55;margin-top:7px"></div>
+      <div id="lrn-kb" style="margin-top:10px"></div>
+    </div>
+
+    <div class="timer" id="lrn-timer">00:00:00</div>
+    <div class="bar"><i id="lrn-bar" style="width:0%"></i></div>
+
+    <div style="margin-top:16px">
+      <button class="btn" id="btn-start">开始学习</button>
+      <div id="lrn-live" style="display:none">
+        <button class="btn ghost" id="btn-pause" style="margin-top:10px">暂停</button>
+        <button class="btn ghost" id="btn-stop" style="margin-top:10px">结束，记一笔</button>
+      </div>
+    </div>
+
+    <div id="lrn-form" style="display:none;margin-top:18px">
+      <div class="fld"><label>这一节你干了什么（一句话）</label>
+        <textarea id="f-what" rows="3" style="width:100%;border-radius:12px;padding:12px;line-height:1.5" placeholder="例：抄了 6040h 使能指令，每个字节都写了注释"></textarea>
+      </div>
+      <div class="fld"><label>留下了什么能拿出手的东西</label><div id="f-prod"></div></div>
+      <div class="fld"><label>你自己觉得值不值</label><div class="stars" id="f-val"></div></div>
+      <button class="btn" id="btn-submit">提交</button>
+      <button class="btn ghost" id="btn-cancel" style="margin-top:10px">算了，不记</button>
+    </div>
+
+    <div id="lrn-result" style="display:none"></div>
+
+    <div class="sec">本 周</div>
+    <div class="stat3" id="lrn-stat3"></div>
+    <div class="hint" id="lrn-verdict"></div>
+
+    <div class="sec">历 史</div>
+    <div id="lrn-hist"></div>
   </section>
 
   <section class="page" id="p-prog">
@@ -280,6 +338,7 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
 <nav class="tabs">
   <button class="on" data-p="today"><em>📅</em>今天</button>
   <button data-p="chat"><em>💬</em>对话</button>
+  <button data-p="learn"><em>⏱️</em>学习</button>
   <button data-p="prog"><em>📈</em>进度</button>
   <button data-p="set"><em>⚙️</em>设置</button>
 </nav>
@@ -373,8 +432,15 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T16:46:00+08:00";
+const BUILD = "2026-11-08T18:06:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-08T18:06:00+08:00", v: "3.0", items: [
+      "新开【学习】页：开始 / 暂停 / 结束计时，结束后记一笔（干了啥、留下啥、你自己觉得值不值）",
+      "自动评分 0–100：看产物、时长对不对得上、是不是挂在今天的任务上、你的自评",
+      "本周统计 + 历史记录，每条都带一句评语，能翻回去看当时怎么评价的",
+      "计划会跟着记录变：连着两次没产物 → 明天自动降级成「15 分钟必须交一样东西」；同一小节记了 3 次还没过 → 明天换拆法",
+      "每条学习任务下面会提示该查哪几份资料，跟知识库打通了"
+  ]},
   { t: "2026-11-08T16:46:00+08:00", v: "2.9", items: [
       "问问题答完就停，不再硬加一句「今天该做的」——只有你连着问、明显在拖延时才拉你",
       "答案下面那行「依据」改成真出处（哪份手册哪一节、哪个对象索引），不再是复述你问的是什么"
@@ -591,6 +657,7 @@ function genToday() {
   const left = m ? daysUntil(m.due) : 999;
   const gap = streakGap();
   const wd = weekdayIdx();
+  const ls = learnStats();
   let main = "", low = "", avoid = [];
 
   if (inExamWeek()) {
@@ -601,6 +668,10 @@ function genToday() {
     main = "先别铺大摊子：重启只需 15 分钟";
     low = "把上一节的笔记翻出来读一遍，写一句「我停在哪个字节」";
     avoid = ["新章节", "新工具", "重新规划整个学期"];
+  } else if (ls.noProd >= 2) {
+    main = "先止血：15 分钟内必须交一样东西（截图 / 一页纸 / 一行数据），交完就算赢";
+    low = "实在不想动：打开资料读 5 分钟，写一句「我卡在哪」";
+    avoid = ["整晚泡实验室", "新章节", "看视频代替动手"];
   } else if (wd === 3) {
     main = "周四空着：写作业 / 上网课 / 补 C 语言指针";
     low = "补 20 分钟 C 语言指针（数组和指针怎么绕）";
@@ -622,6 +693,10 @@ function genToday() {
       main = tag + "：" + part.desc + "（约 " + mm + " 分钟）→ " + part.out;
       low = "崩了也做这个：" + step.title + " 只做 10 分钟，写下「做到哪了」";
       avoid = BANNED.slice(0, 6).concat(["比当前更靠后的章节"]);
+      if (ls.stuck.indexOf(step.id) >= 0) {
+        main = "「" + step.title + "」你已经记了 3 次以上还没过 → 今天只做它的第 1 小节，20 分钟，做完就算赢";
+        low = "连 20 分钟都提不起劲：把卡住的那句话抄下来，去【对话】问一次";
+      }
     }
   }
   const task = {
@@ -1191,6 +1266,272 @@ function renderToday() {
   document.getElementById("t-avoid").textContent = t.avoid;
 }
 
+// =========================================================== 学习记录 ====
+const LS_TIMER = "whale_timer_v1";
+const PRODUCTS = [
+  { k: "page", n: "一页纸 / 报告", s: 40 },
+  { k: "code", n: "代码 / 文件", s: 40 },
+  { k: "shot", n: "截图 / 视频", s: 35 },
+  { k: "note", n: "笔记", s: 25 },
+  { k: "none", n: "啥也没留", s: 0 }
+];
+// 每条学习任务默认挂哪几份资料（按知识库标题关键词找，找不到就全文检索）
+const PART_KB = {
+  "L2-1": ["CAN 帧", "波特率", "控制方式"],
+  "L2-2": ["接线", "引脚", "CAN 帧"],
+  "L2-3": ["对象字典", "反馈", "DS402"],
+  "L2-4": ["基准", "对象字典", "反馈"],
+  "L2-5": ["驱动器", "保护", "DS402"],
+  "L2-6": ["控制方式", "多 CAN", "DS402"]
+};
+let TIMER = loadTimer();
+let FORM = { product: "page", value: 3 };
+
+function loadTimer() {
+  try { return JSON.parse(localStorage.getItem(LS_TIMER) || "null"); } catch (e) { return null; }
+}
+function saveTimer() {
+  try { TIMER ? localStorage.setItem(LS_TIMER, JSON.stringify(TIMER)) : localStorage.removeItem(LS_TIMER); } catch (e) {}
+}
+function elapsedMs() {
+  if (!TIMER) return 0;
+  return (TIMER.acc || 0) + (TIMER.run ? Date.now() - TIMER.start : 0);
+}
+function fmtClock(ms) {
+  const t = Math.floor(ms / 1000);
+  const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
+  return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+}
+function activeTrack() { return (STATE.milestones[0] && STATE.milestones[0].done) ? "lab1" : "lab2"; }
+function learnTarget() {
+  const track = activeTrack();
+  const [step, idx, part] = currentPart(track);
+  if (!step || !part) return null;
+  return { track: track, step: step, idx: idx, part: part, key: step.id + "-" + (idx + 1), target: part.min || 45 };
+}
+function kbForPart(stepId) {
+  const kws = PART_KB[stepId] || [];
+  if (!kws.length || !KB.length) return [];
+  const out = [];
+  kws.forEach(kw => KB.forEach(d => {
+    if (out.length < 3 && d.title.indexOf(kw) >= 0 && out.indexOf(d.title) < 0) out.push(d.title);
+  }));
+  if (out.length < 2) {
+    searchKB(kws.join(" "), 4).forEach(h => { if (out.length < 3 && out.indexOf(h.title) < 0) out.push(h.title); });
+  }
+  return out;
+}
+function sessionsAll() { return STATE.sessions || []; }
+function scoreSession(s) {
+  let sc = 0;
+  const p = PRODUCTS.filter(x => x.k === s.product)[0] || PRODUCTS[4];
+  sc += p.s;
+  const tgt = s.target || 45;
+  const ratio = s.min / tgt;
+  if (ratio >= 0.75 && ratio <= 1.5) sc += 25;
+  else if (ratio >= 0.5) sc += 15;
+  else if (ratio >= 0.34) sc += 8;
+  if (ratio > 2) sc -= 5;
+  if (s.part) sc += 20;
+  sc += (s.value - 3) * 5;
+  return Math.max(0, Math.min(100, Math.round(sc)));
+}
+function gradeOf(sc) {
+  if (sc >= 80) return { n: "这一节真过了", c: "zhen" };
+  if (sc >= 60) return { n: "算推进", c: "zhen" };
+  if (sc >= 40) return { n: "动了，但没留下东西", c: "zhuan" };
+  return { n: "原地打转", c: "pao" };
+}
+function fbOf(s) {
+  const bits = [];
+  const tgt = s.target || 45;
+  if (s.product === "none") bits.push("没产物——下次结束前逼自己交一样东西，半页纸也算");
+  if (s.min < tgt * 0.5) bits.push("只坐了 " + s.min + " 分钟，下次把目标切成 20 分钟一段");
+  if (s.min > tgt * 2) bits.push("一口气 " + s.min + " 分钟，后半段大概率在磨洋工");
+  if (s.value <= 2) bits.push("你自己都觉得不值——明天这段换个做法，别重复今天");
+  if (s.product !== "none" && s.min <= tgt) bits.push("有产物、时长也对得上，这段是实的");
+  return bits.join("；") || "记下了";
+}
+function learnStats() {
+  const all = sessionsAll();
+  const cut = Date.now() - 7 * 864e5;
+  const wk = all.filter(s => new Date(s.end).getTime() >= cut);
+  const today = todayStr();
+  const tdy = all.filter(s => String(s.end || "").slice(0, 10) === today);
+  let noProd = 0;
+  for (let i = all.length - 1; i >= 0; i--) { if (all[i].product === "none") noProd++; else break; }
+  const cnt = {};
+  all.forEach(s => { if (s.part) cnt[s.part] = (cnt[s.part] || 0) + 1; });
+  const stuck = Object.keys(cnt).filter(k => cnt[k] >= 3);
+  return {
+    n: wk.length,
+    total: wk.reduce((a, s) => a + s.min, 0),
+    avg: wk.length ? Math.round(wk.reduce((a, s) => a + s.score, 0) / wk.length) : 0,
+    todayMin: tdy.reduce((a, s) => a + s.min, 0),
+    todayN: tdy.length,
+    noProd: noProd,
+    stuck: stuck.map(k => k.split("-")[0])
+  };
+}
+
+function renderLearn() {
+  const tg = learnTarget();
+  const st = learnStats();
+  document.getElementById("lrn-head").textContent =
+    "今天 " + st.todayMin + " 分钟 · " + st.todayN + " 次 ｜ 本周 " + st.total + " 分钟 · " + st.n + " 次" +
+    (st.n ? " · 平均 " + st.avg + " 分" : "");
+
+  const taskEl = document.getElementById("lrn-task");
+  const outEl = document.getElementById("lrn-out");
+  const kbEl = document.getElementById("lrn-kb");
+  const tgtEl = document.getElementById("lrn-target");
+  if (!tg) {
+    taskEl.textContent = "两条线都清完了";
+    outEl.textContent = "新的关卡等师兄安排。可以先整理笔记。";
+    tgtEl.textContent = "";
+    kbEl.innerHTML = "";
+  } else {
+    taskEl.textContent = tg.step.id + " · 第 " + (tg.idx + 1) + "/" + tg.step.parts.length + " 小节";
+    tgtEl.textContent = "目标 " + tg.target + " 分钟";
+    outEl.textContent = tg.part.desc + " → " + tg.part.out;
+    const kbs = kbForPart(tg.step.id);
+    if (kbs.length) {
+      kbEl.innerHTML = '<div class="hint" style="margin:0">📚 相关资料：' +
+        kbs.map(t => '<span style="color:var(--tek)">' + esc(t) + "</span>").join("、") +
+        '<br><span style="opacity:.7">在【设置 → 知识库】里能搜到，问 AI 时会自动带上</span></div>';
+    } else {
+      kbEl.innerHTML = '<div class="hint" style="margin:0">📚 这条线还没有入知识库的资料（踝关节方向本鲸鱼娘手上没有）</div>';
+    }
+  }
+
+  const timerEl = document.getElementById("lrn-timer");
+  const barEl = document.getElementById("lrn-bar");
+  const running = !!(TIMER && TIMER.run);
+  const has = !!(TIMER);
+  timerEl.textContent = fmtClock(elapsedMs());
+  timerEl.classList.toggle("run", running);
+  const tgtMin = (TIMER && TIMER.target) || (tg && tg.target) || 45;
+  const pct = Math.min(100, elapsedMs() / 60000 / tgtMin * 100);
+  barEl.style.width = pct.toFixed(1) + "%";
+  document.getElementById("btn-start").style.display = has ? "none" : "";
+  document.getElementById("lrn-live").style.display = has ? "" : "none";
+  document.getElementById("btn-pause").textContent = running ? "暂停" : "继续";
+
+  renderLearnStats();
+  renderHistory();
+}
+function renderLearnStats() {
+  const st = learnStats();
+  document.getElementById("lrn-stat3").innerHTML =
+    '<div><b>' + st.total + '</b><span>本周分钟</span></div>' +
+    '<div><b>' + st.n + '</b><span>本周次数</span></div>' +
+    '<div><b>' + (st.avg || "—") + '</b><span>平均得分</span></div>';
+  const vs = [];
+  if (TIMER && elapsedMs() > 8 * 3600e3) vs.push("⏰ 计时器开了 " + Math.round(elapsedMs() / 3600e3) + " 小时了，是不是忘了按结束？");
+  if (st.noProd >= 2) vs.push("连着 " + st.noProd + " 次没留下东西——明天【今天】已经被本鲸鱼娘自动降级成「15 分钟 + 必须交一样东西」了。");
+  if (st.stuck.length) vs.push("这几个小节你记了 3 次以上还没过：" + st.stuck.join("、") + "。别硬扛，明天换个拆法。");
+  if (st.avg >= 75 && st.n >= 3) vs.push("本周平均 " + st.avg + " 分，时长和产物都对得上，这个节奏就对了。");
+  document.getElementById("lrn-verdict").textContent = vs.join(" ");
+}
+function renderHistory() {
+  const box = document.getElementById("lrn-hist");
+  const all = sessionsAll().slice().reverse().slice(0, 30);
+  if (!all.length) {
+    box.innerHTML = '<div class="hint">还没有记录。点上面「开始学习」，做完按「结束，记一笔」。</div>';
+    return;
+  }
+  box.innerHTML = all.map(s => {
+    const g = gradeOf(s.score);
+    const pn = (PRODUCTS.filter(x => x.k === s.product)[0] || PRODUCTS[4]).n;
+    const d = String(s.end || "").slice(5, 16).replace("T", " ");
+    return '<div class="sess"><div class="top"><span>' + esc(d) + " · " + esc(s.part || "未挂任务") + "</span>" +
+      '<span class="sc" style="color:' + (s.score >= 60 ? "var(--tek)" : s.score >= 40 ? "var(--gold)" : "var(--pink)") + '">' + s.score + "</span></div>" +
+      '<div class="body">' + esc(s.content || "(没写内容)") + "</div>" +
+      '<div class="meta">' + s.min + " 分钟 · " + esc(pn) + " · 自评 " + "★".repeat(s.value) + "☆".repeat(5 - s.value) +
+      " · " + esc(g.n) + (s.kb && s.kb.length ? " · 用了：" + esc(s.kb.join("、")) : "") +
+      '<br><span style="opacity:.85">' + esc(s.feedback || "") + "</span></div></div>";
+  }).join("");
+}
+function startTimer() {
+  const tg = learnTarget();
+  const kbs = tg ? kbForPart(tg.step.id) : [];
+  document.getElementById("lrn-result").style.display = "none";
+  TIMER = {
+    start: Date.now(), acc: 0, run: true,
+    part: tg ? tg.key : "", track: tg ? tg.track : "",
+    target: tg ? tg.target : 45,
+    taskName: tg ? (tg.step.id + " · " + tg.step.title) : "自由学习",
+    kb: kbs
+  };
+  saveTimer(); renderLearn(); toast("开始计时。先做 25 分钟也行喵。");
+}
+function pauseTimer() {
+  if (!TIMER) return;
+  if (TIMER.run) { TIMER.acc = elapsedMs(); TIMER.run = false; }
+  else { TIMER.start = Date.now(); TIMER.run = true; }
+  saveTimer(); renderLearn();
+}
+function openForm() {
+  if (!TIMER) return;
+  const tg = learnTarget();
+  const mins = Math.max(1, Math.round(elapsedMs() / 60000));
+  document.getElementById("lrn-form").style.display = "";
+  document.getElementById("lrn-form").dataset.min = mins;
+  document.getElementById("btn-start").style.display = "none";
+  document.getElementById("lrn-live").style.display = "none";
+  const pw = document.getElementById("f-prod");
+  FORM.product = (mins >= 20) ? "page" : "note";
+  pw.innerHTML = PRODUCTS.map(p =>
+    '<span class="chip' + (p.k === FORM.product ? " on" : "") + '" data-k="' + p.k + '">' + p.n + "</span>"
+  ).join("");
+  const vw = document.getElementById("f-val");
+  vw.innerHTML = [1, 2, 3, 4, 5].map(i =>
+    '<span class="' + (i <= FORM.value ? "on" : "") + '" data-v="' + i + '">★</span>'
+  ).join("");
+  const ta = document.getElementById("f-what");
+  ta.value = tg ? (tg.part.desc.length > 30 ? "" : tg.part.desc) : "";
+  setTimeout(() => ta.focus(), 120);
+  document.getElementById("lrn-form").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+function submitForm() {
+  const min = Math.max(1, Math.round(elapsedMs() / 60000));
+  const s = {
+    id: "s" + Date.now(),
+    start: new Date(Date.now() - elapsedMs()).toISOString(),
+    end: new Date().toISOString(),
+    min: min,
+    target: (TIMER && TIMER.target) || 45,
+    part: (TIMER && TIMER.part) || "",
+    track: (TIMER && TIMER.track) || "",
+    taskName: (TIMER && TIMER.taskName) || "",
+    content: (document.getElementById("f-what").value || "").trim(),
+    product: FORM.product,
+    value: FORM.value,
+    kb: (TIMER && TIMER.kb) || []
+  };
+  s.score = scoreSession(s);
+  s.grade = gradeOf(s.score).n;
+  s.feedback = fbOf(s);
+  STATE.sessions = STATE.sessions || [];
+  STATE.sessions.push(s);
+  saveState();
+  TIMER = null; saveTimer();
+  document.getElementById("lrn-form").style.display = "none";
+  const g = gradeOf(s.score);
+  document.getElementById("lrn-result").style.display = "";
+  document.getElementById("lrn-result").innerHTML =
+    '<div class="card" style="border-color:rgba(65,227,211,.35)">' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline">' +
+    '<b style="font-size:15px">这次是「' + esc(g.n) + "」</b>" +
+    '<span class="sc" style="font-size:24px;font-weight:700;color:var(--tek)">' + s.score + "</span></div>" +
+    '<div class="hint" style="margin:10px 0 0">' + esc(s.feedback) + "</div>" +
+    '<div class="hint" style="margin:10px 0 0">' + s.min + " 分钟 · 目标 " + s.target + " 分钟 · 自评 " + s.value + "/5" +
+    (s.kb.length ? " · 用了 " + esc(s.kb.length + " 份资料") : "") + "</div></div>";
+  document.getElementById("btn-start").style.display = "";
+  renderLearn();
+  toast("记上了：" + s.score + " 分");
+}
+
 function renderProgress() {
   document.getElementById("miles").innerHTML = STATE.milestones.map(m => {
     if (m.done) return '<div class="card mile done"><div class="id">' + m.id + ' · 已完成</div><div class="n">✓</div><div class="t">' + esc(m.title) + "</div></div>";
@@ -1280,11 +1621,44 @@ function switchPage(p) {
   document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
   document.getElementById("bar").classList.toggle("on", p === "chat");
   if (p === "prog") renderProgress();
+  if (p === "learn") renderLearn();
   if (p === "set") renderSettings();
   if (p === "chat") { renderChat(); setTimeout(() => document.getElementById("inp").focus(), 100); }
 }
 
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => switchPage(b.dataset.p));
+
+// ---- 学习页按钮 ----
+document.getElementById("btn-start").onclick = startTimer;
+document.getElementById("btn-pause").onclick = pauseTimer;
+document.getElementById("btn-stop").onclick = openForm;
+document.getElementById("btn-submit").onclick = submitForm;
+document.getElementById("btn-cancel").onclick = () => {
+  if (!confirm("这次不记了？计时会清零。")) return;
+  TIMER = null; saveTimer();
+  document.getElementById("lrn-form").style.display = "none";
+  renderLearn();
+};
+document.getElementById("f-prod").onclick = (e) => {
+  const k = e.target && e.target.getAttribute && e.target.getAttribute("data-k");
+  if (!k) return;
+  FORM.product = k;
+  Array.from(document.getElementById("f-prod").children).forEach(c => c.classList.toggle("on", c.getAttribute("data-k") === k));
+};
+document.getElementById("f-val").onclick = (e) => {
+  const v = +(e.target && e.target.getAttribute && e.target.getAttribute("data-v"));
+  if (!v) return;
+  FORM.value = v;
+  Array.from(document.getElementById("f-val").children).forEach((c, i) => c.classList.toggle("on", i < v));
+};
+setInterval(() => {
+  if (!TIMER || !TIMER.run) return;
+  const el = document.getElementById("p-learn");
+  if (!el || !el.classList.contains("on")) return;
+  document.getElementById("lrn-timer").textContent = fmtClock(elapsedMs());
+  const tgt = TIMER.target || 45;
+  document.getElementById("lrn-bar").style.width = Math.min(100, elapsedMs() / 60000 / tgt * 100).toFixed(1) + "%";
+}, 1000);
 
 document.getElementById("btn-done").onclick = () => {
   const track = STATE.milestones[0].done ? "lab1" : "lab2";
