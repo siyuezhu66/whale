@@ -520,7 +520,7 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T23:30:00+08:00";
+const BUILD = "2026-11-08T23:40:00+08:00";
 const CHANGELOG = [
   { t: "2026-11-08T23:30:00+08:00", v: "3.5", items: [
       "证据不再只能贴图：截图、代码（.py/.c/.md…）、Word、PPT 都能交",
@@ -1604,7 +1604,7 @@ async function runAnalyze() {
     "你是学习教练的助手。学生刚提交了学习证据（图片 / 代码 / 文档）。\n" +
     "他当前的任务是：「" + taskLine + "」\n" +
     "请判断并只输出 JSON：\n" +
-    '{"what":"他实际做了什么，具体到他交的东西本身（看到什么写什么，不要复述任务）",' +
+    '{"what":"他实际做了什么，具体到他交的东西本身（看到什么写什么，不复述任务，80 字内）",' +
     '"relates":"直接相关|擦边|无关",' +
     '"product":"有|没有",' +
     '"gap":"和任务要求比还差什么，一句话，没有就写 无",' +
@@ -1621,7 +1621,7 @@ async function runAnalyze() {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + c.key },
       body: JSON.stringify({
-        model: "deepseek-flash", temperature: 0.3, max_tokens: 500,
+        model: "deepseek-flash", temperature: 0.3, max_tokens: 1200,
         response_format: { type: "json_object" },
         messages: [{ role: "user", content: parts }]
       })
