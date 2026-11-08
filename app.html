@@ -432,8 +432,13 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T18:06:00+08:00";
+const BUILD = "2026-11-08T18:22:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-08T18:22:00+08:00", v: "3.1", items: [
+      "修：结束计时的表单打开后计时器还在跑，现在一按「结束，记一笔」就停表",
+      "修：评分对「磨洋工」太宽容——超过目标时长 2 倍不再给时长分，还要倒扣",
+      "修：评语前后矛盾（「只坐了 3 分钟」和「时长也对得上」同时出现），现在按比例只出一句"
+  ]},
   { t: "2026-11-08T18:06:00+08:00", v: "3.0", items: [
       "新开【学习】页：开始 / 暂停 / 结束计时，结束后记一笔（干了啥、留下啥、你自己觉得值不值）",
       "自动评分 0–100：看产物、时长对不对得上、是不是挂在今天的任务上、你的自评",
@@ -1329,9 +1334,9 @@ function scoreSession(s) {
   const tgt = s.target || 45;
   const ratio = s.min / tgt;
   if (ratio >= 0.75 && ratio <= 1.5) sc += 25;
-  else if (ratio >= 0.5) sc += 15;
-  else if (ratio >= 0.34) sc += 8;
-  if (ratio > 2) sc -= 5;
+  else if (ratio >= 0.5 && ratio < 0.75) sc += 15;
+  else if (ratio >= 0.34 && ratio < 0.5) sc += 8;
+  if (ratio > 2) sc -= 10;
   if (s.part) sc += 20;
   sc += (s.value - 3) * 5;
   return Math.max(0, Math.min(100, Math.round(sc)));
