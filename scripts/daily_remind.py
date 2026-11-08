@@ -192,6 +192,12 @@ def main():
         print("  (dry run, 没有推送)")
         return 0
 
+    # 凌晨别吵：北京时间 23:00–08:00 一律不推（GitHub 定时偶尔会拖到半夜）
+    _hnow = datetime.now(BJ).hour
+    if not (8 <= _hnow < 23):
+        print("  ! 现在 %02d 点（北京时间），不在推送时段 08:00–23:00，跳过这次" % _hnow)
+        return 0
+
     spt = os.environ.get("WXPUSHER_SPT", "").strip()
     wecom = os.environ.get("WECOM_WEBHOOK", "").strip()
     pp = os.environ.get("PUSHPLUS_TOKEN", "").strip()
