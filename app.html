@@ -1345,11 +1345,13 @@ function gradeOf(sc) {
 function fbOf(s) {
   const bits = [];
   const tgt = s.target || 45;
+  const ratio = s.min / tgt;
   if (s.product === "none") bits.push("没产物——下次结束前逼自己交一样东西，半页纸也算");
-  if (s.min < tgt * 0.5) bits.push("只坐了 " + s.min + " 分钟，下次把目标切成 20 分钟一段");
-  if (s.min > tgt * 2) bits.push("一口气 " + s.min + " 分钟，后半段大概率在磨洋工");
+  else if (ratio < 0.5) bits.push("东西交了，但时间没给够：" + s.min + " 分钟 / 目标 " + tgt + " 分钟，下次先定 20 分钟一段");
+  else if (ratio <= 1.5) bits.push("有产物、时长也对得上，这段是实的");
+  else bits.push("一口气 " + s.min + " 分钟，后半段大概率在磨洋工");
+  if (s.min < 5) bits.push("连 5 分钟都没坐住，这个只能算个开头，不算一次");
   if (s.value <= 2) bits.push("你自己都觉得不值——明天这段换个做法，别重复今天");
-  if (s.product !== "none" && s.min <= tgt) bits.push("有产物、时长也对得上，这段是实的");
   return bits.join("；") || "记下了";
 }
 function learnStats() {
@@ -1473,6 +1475,7 @@ function pauseTimer() {
 }
 function openForm() {
   if (!TIMER) return;
+  if (TIMER.run) { TIMER.acc = elapsedMs(); TIMER.run = false; saveTimer(); }
   const tg = learnTarget();
   const mins = Math.max(1, Math.round(elapsedMs() / 60000));
   document.getElementById("lrn-form").style.display = "";
