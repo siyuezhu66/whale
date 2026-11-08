@@ -158,6 +158,43 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
 .sess .sc{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .sess .body{font-size:13.5px;line-height:1.55}
 .sess .meta{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5}
+.calbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.calbar #cal-title{font-size:15px;font-weight:700;flex:1;letter-spacing:1px}
+.calbar button{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:10px;width:34px;height:34px;font-size:17px;line-height:1;cursor:pointer}
+.calbar .calbtn{width:auto;padding:0 12px;font-size:12px;color:var(--dim)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+.cal .dow{font-size:11px;color:var(--dim);text-align:center;padding-bottom:2px}
+.cal .d{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border-radius:11px;font-size:13px;font-variant-numeric:tabular-nums;border:1px solid transparent;cursor:pointer;position:relative;transition:transform .12s;color:var(--dim)}
+.cal .d.pad{border:none;cursor:default}
+.cal .d:not(.pad):hover{transform:translateY(-2px)}
+.cal .d.has{font-weight:700}
+.cal .d.lv0{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:rgba(255,255,255,.34)}
+.cal .d.lv1{background:#ff4d6d;color:#2a0008}
+.cal .d.lv2{background:#f2c94c;color:#2b2000}
+.cal .d.lv3{background:#4a9eff;color:#001428}
+.cal .d.lv4{background:#2ee08a;color:#00220f}
+.cal .d.sel{outline:2px solid var(--tek);outline-offset:2px}
+.cal .d .cnt{position:absolute;top:3px;right:5px;font-size:9px;font-style:normal;opacity:.65}
+.calleg{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0 6px;font-size:11.5px;color:var(--dim)}
+.calleg span{display:flex;align-items:center;gap:5px}
+.calleg .lg{width:12px;height:12px;border-radius:4px;display:inline-block}
+.calleg .lg.lv0{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13)}
+.calleg .lg.lv1{background:#ff4d6d}
+.calleg .lg.lv2{background:#f2c94c}
+.calleg .lg.lv3{background:#4a9eff}
+.calleg .lg.lv4{background:#2ee08a}
+.daytop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.daytop .badge{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.daytop .badge.lv0{background:rgba(255,255,255,.09);color:var(--dim)}
+.daytop .badge.lv1{background:rgba(255,77,109,.18);color:#ff4d6d}
+.daytop .badge.lv2{background:rgba(242,201,76,.18);color:#f2c94c}
+.daytop .badge.lv3{background:rgba(74,158,255,.18);color:#4a9eff}
+.daytop .badge.lv4{background:rgba(46,224,138,.18);color:#2ee08a}
+.sess .sc.lv1{color:#ff4d6d}
+.sess .sc.lv2{color:#f2c94c}
+.sess .sc.lv3{color:#4a9eff}
+.sess .sc.lv4{color:#2ee08a}
+.sess .fb{color:var(--tek);opacity:.85}
 .stat3{display:flex;gap:9px;margin-bottom:10px}
 .stat3 div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center}
 .stat3 b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
@@ -256,7 +293,21 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
     <div class="stat3" id="lrn-stat3"></div>
     <div class="hint" id="lrn-verdict"></div>
 
-    <div class="sec">历 史</div>
+    <div class="sec">日 历</div>
+    <div class="calbar">
+      <button id="cal-prev" title="上个月">‹</button>
+      <span id="cal-title"></span>
+      <button id="cal-next" title="下个月">›</button>
+      <button id="cal-today" class="calbtn">回今天</button>
+    </div>
+    <div class="cal" id="lrn-cal"></div>
+    <div class="calleg">
+      <span><i class="lg lv0"></i>没干活</span>
+      <span><i class="lg lv1"></i>不达标</span>
+      <span><i class="lg lv2"></i>及格</span>
+      <span><i class="lg lv3"></i>良好</span>
+      <span><i class="lg lv4"></i>优秀</span>
+    </div>
     <div id="lrn-hist"></div>
   </section>
 
@@ -432,8 +483,14 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T18:22:00+08:00";
+const BUILD = "2026-11-08T18:42:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-08T18:42:00+08:00", v: "3.2", items: [
+      "学习记录改成月历：一天一格，点哪天看哪天的细节，不用再往下滚一长串",
+      "颜色就是考勤 + 质量：白=没干活、红=不达标（<60）、黄=及格（60–74）、蓝=良好（75–84）、绿=优秀（≥85）",
+      "一天多次会自动按分钟加权折成一个颜色，格子上小数字是当天记了几次",
+      "可以翻月份、一键回今天"
+  ]},
   { t: "2026-11-08T18:22:00+08:00", v: "3.1", items: [
       "修：结束计时的表单打开后计时器还在跑，现在一按「结束，记一笔」就停表",
       "修：评分对「磨洋工」太宽容——超过目标时长 2 倍不再给时长分，还要倒扣",
@@ -1440,24 +1497,98 @@ function renderLearnStats() {
   if (st.avg >= 75 && st.n >= 3) vs.push("本周平均 " + st.avg + " 分，时长和产物都对得上，这个节奏就对了。");
   document.getElementById("lrn-verdict").textContent = vs.join(" ");
 }
+const DAYLV = ["没干活", "不达标", "及格", "良好", "优秀"];
+let CAL = null;
+let CAL_SEL = "";
+function dayMap() {
+  const map = {};
+  sessionsAll().forEach(s => {
+    const d = String(s.end || "").slice(0, 10);
+    if (!d) return;
+    (map[d] = map[d] || []).push(s);
+  });
+  return map;
+}
+function dayScore(list) {
+  if (!list || !list.length) return null;
+  const mins = list.reduce((a, s) => a + (s.min || 0), 0);
+  if (mins <= 0) return Math.round(list.reduce((a, s) => a + s.score, 0) / list.length);
+  return Math.round(list.reduce((a, s) => a + s.score * (s.min || 0), 0) / mins);
+}
+function dayLevel(sc) {
+  if (sc === null) return 0;
+  if (sc < 60) return 1;
+  if (sc < 75) return 2;
+  if (sc < 85) return 3;
+  return 4;
+}
 function renderHistory() {
+  const map = dayMap();
+  const now = new Date();
+  if (!CAL) CAL = { y: now.getFullYear(), m: now.getMonth() };
+  if (!CAL_SEL) CAL_SEL = todayStr();
+  const y = CAL.y, m = CAL.m;
+  document.getElementById("cal-title").textContent = y + " 年 " + (m + 1) + " 月";
+  const startDow = (new Date(y, m, 1).getDay() + 6) % 7;
+  const dim = new Date(y, m + 1, 0).getDate();
+  const cells = ["一", "二", "三", "四", "五", "六", "日"].map(w => '<div class="dow">' + w + "</div>");
+  for (let i = 0; i < startDow; i++) cells.push('<div class="d pad"></div>');
+  for (let d = 1; d <= dim; d++) {
+    const key = y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+    const list = map[key];
+    const sc = dayScore(list);
+    const lv = dayLevel(sc);
+    cells.push('<div class="d lv' + lv + (key === CAL_SEL ? " sel" : "") + (list ? " has" : "") +
+      '" data-day="' + key + '" title="' + key + " · " + (list ? DAYLV[lv] + " " + sc + " 分 · " + list.length + " 次" : "没干活") + '">' +
+      d + (list && list.length > 1 ? '<i class="cnt">' + list.length + "</i>" : "") + "</div>");
+  }
+  document.getElementById("lrn-cal").innerHTML = cells.join("");
+  renderDay();
+}
+function renderDay() {
   const box = document.getElementById("lrn-hist");
-  const all = sessionsAll().slice().reverse().slice(0, 30);
-  if (!all.length) {
-    box.innerHTML = '<div class="hint">还没有记录。点上面「开始学习」，做完按「结束，记一笔」。</div>';
+  const list = dayMap()[CAL_SEL] || [];
+  if (!list.length) {
+    box.innerHTML = '<div class="card" style="padding:16px"><div class="daytop"><b>' + CAL_SEL +
+      '</b><span class="badge lv0">没干活</span></div><div class="hint" style="margin-top:8px">这天没有记录。</div></div>';
     return;
   }
-  box.innerHTML = all.map(s => {
-    const g = gradeOf(s.score);
+  const sc = dayScore(list);
+  const lv = dayLevel(sc);
+  const total = list.reduce((a, s) => a + (s.min || 0), 0);
+  let html = '<div class="card" style="padding:16px"><div class="daytop"><b>' + CAL_SEL +
+    '</b><span class="badge lv' + lv + '">' + DAYLV[lv] + " · " + sc + ' 分</span></div>' +
+    '<div class="hint" style="margin-top:8px">共 ' + list.length + " 次 · 合计 " + total + " 分钟</div></div>";
+  html += list.map(s => {
     const pn = (PRODUCTS.filter(x => x.k === s.product)[0] || PRODUCTS[4]).n;
-    const d = String(s.end || "").slice(5, 16).replace("T", " ");
-    return '<div class="sess"><div class="top"><span>' + esc(d) + " · " + esc(s.part || "未挂任务") + "</span>" +
-      '<span class="sc" style="color:' + (s.score >= 60 ? "var(--tek)" : s.score >= 40 ? "var(--gold)" : "var(--pink)") + '">' + s.score + "</span></div>" +
+    const t = String(s.end || "").slice(11, 16);
+    return '<div class="sess"><div class="top"><span>' + esc(t) + " · " + esc(s.part || "未挂任务") + "</span>" +
+      '<span class="sc lv' + dayLevel(s.score) + '">' + s.score + "</span></div>" +
       '<div class="body">' + esc(s.content || "(没写内容)") + "</div>" +
       '<div class="meta">' + s.min + " 分钟 · " + esc(pn) + " · 自评 " + "★".repeat(s.value) + "☆".repeat(5 - s.value) +
-      " · " + esc(g.n) + (s.kb && s.kb.length ? " · 用了：" + esc(s.kb.join("、")) : "") +
-      '<br><span style="opacity:.85">' + esc(s.feedback || "") + "</span></div></div>";
+      " · " + esc(gradeOf(s.score).n) + (s.kb && s.kb.length ? " · 用了：" + esc(s.kb.join("、")) : "") +
+      (s.feedback ? '<br><span class="fb">' + esc(s.feedback) + "</span>" : "") + "</div></div>";
   }).join("");
+  box.innerHTML = html;
+}
+function calInit() {
+  const n = new Date();
+  CAL = { y: n.getFullYear(), m: n.getMonth() };
+  CAL_SEL = todayStr();
+  document.getElementById("lrn-cal").onclick = (e) => {
+    const t = e.target && e.target.closest ? e.target.closest(".d[data-day]") : null;
+    if (!t) return;
+    CAL_SEL = t.getAttribute("data-day");
+    renderHistory();
+  };
+  document.getElementById("cal-prev").onclick = () => { CAL.m--; if (CAL.m < 0) { CAL.m = 11; CAL.y--; } renderHistory(); };
+  document.getElementById("cal-next").onclick = () => { CAL.m++; if (CAL.m > 11) { CAL.m = 0; CAL.y++; } renderHistory(); };
+  document.getElementById("cal-today").onclick = () => {
+    const d = new Date();
+    CAL = { y: d.getFullYear(), m: d.getMonth() };
+    CAL_SEL = todayStr();
+    renderHistory();
+  };
 }
 function startTimer() {
   const tg = learnTarget();
@@ -1637,6 +1768,7 @@ function switchPage(p) {
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => switchPage(b.dataset.p));
 
 // ---- 学习页按钮 ----
+calInit();
 document.getElementById("btn-start").onclick = startTimer;
 document.getElementById("btn-pause").onclick = pauseTimer;
 document.getElementById("btn-stop").onclick = openForm;
