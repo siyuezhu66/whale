@@ -372,8 +372,12 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T14:32:00+08:00";
+const BUILD = "2026-11-08T16:20:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-08T16:20:00+08:00", v: "2.7", items: [
+      "知识库支持一次性导入 .json 批量文件（一个文件里放几十条）",
+      "单个导入文件上限从 400KB 放宽到 900KB"
+  ]},
   { t: "2026-11-08T14:32:00+08:00", v: "2.6", items: [
       "AI Key 和知识库也进了云存档：换设备不用重填，打开就自动合并",
       "两台设备各自加过的资料会并在一起，不会互相覆盖",
@@ -1334,10 +1338,30 @@ document.getElementById("kb-in").onchange = async (e) => {
   if (!files.length) return;
   let ok = 0;
   for (const f of files) {
-    if (f.size > 400 * 1024) { toast(f.name + " 太大了（>400k），先切小份再传"); continue; }
+    if (f.size > 900 * 1024) { toast(f.name + " 太大了（>900k），先切小份再传"); continue; }
     let text = "";
     try { text = await f.text(); } catch (err) { toast("读不了 " + f.name); continue; }
     if (!text.trim()) { continue; }
+    // .json 且是数组 → 批量导入多条
+    if (/\.json$/i.test(f.name)) {
+      try {
+        const arr = JSON.parse(text);
+        const list = Array.isArray(arr) ? arr : (arr && Array.isArray(arr.kb) ? arr.kb : null);
+        if (list) {
+          let n = 0;
+          for (const it of list) {
+            if (!it || !it.text) continue;
+            KB.push({
+              title: String(it.title || ("条目 " + (n + 1))).slice(0, 80),
+              text: String(it.text),
+              added: new Date().toISOString()
+            });
+            n++;
+          }
+          if (n) { ok += n; continue; }
+        }
+      } catch (err) { /* 不是批量格式，按普通文本处理 */ }
+    }
     KB.push({
       title: f.name.replace(/\.[^.]+$/, ""),
       text: text,
