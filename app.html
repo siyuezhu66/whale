@@ -197,6 +197,15 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
 .sess .sc.lv3{color:#4a9eff}
 .sess .sc.lv4{color:#2ee08a}
 .sess .fb{color:var(--tek);opacity:.85}
+.shots{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:9px}
+.shots .sh{position:relative;width:86px;height:86px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#000}
+.shots .sh img{width:100%;height:100%;object-fit:cover;display:block}
+.shots .sh i{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-style:normal;font-size:12px;line-height:18px;text-align:center;cursor:pointer}
+.day-shots{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.day-shots img{width:112px;height:112px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in}
+.viewer{position:fixed;inset:0;background:rgba(4,9,16,.94);display:none;align-items:center;justify-content:center;z-index:999;padding:14px}
+.viewer.on{display:flex}
+.viewer img{max-width:100%;max-height:100%;border-radius:12px}
 .stat3{display:flex;gap:9px;margin-bottom:10px}
 .stat3 div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center}
 .stat3 b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
@@ -285,6 +294,11 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
       </div>
       <div class="fld"><label>留下了什么能拿出手的东西</label><div id="f-prod"></div></div>
       <div class="fld"><label>你自己觉得值不值</label><div class="stars" id="f-val"></div></div>
+      <div class="fld"><label>留证据（截图 / 拍照，最多 4 张）</label>
+        <div id="f-shots" class="shots"></div>
+        <input type="file" id="f-shot" accept="image/*" multiple style="display:none">
+        <button class="btn ghost" id="btn-shot">＋ 添加图片</button>
+      </div>
       <button class="btn" id="btn-submit">提交</button>
       <button class="btn ghost" id="btn-cancel" style="margin-top:10px">算了，不记</button>
     </div>
@@ -382,6 +396,7 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
       引擎在本地跑，不联网也能用。</div>
   </section>
 </main>
+<div class="viewer" id="viewer"><img id="viewer-img" alt=""></div>
 
 <div class="inputbar" id="bar">
   <textarea id="inp" rows="1" placeholder="今天做了啥？随便说，乱说也行"></textarea>
@@ -490,8 +505,13 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T18:57:00+08:00";
+const BUILD = "2026-11-08T19:24:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-08T19:24:00+08:00", v: "3.3", items: [
+      "记一笔的时候可以附图：截图或拍照，最多 4 张，自动压到 720px 再存",
+      "日历点开某天，能看到当时留下的证据图，点图看大图",
+      "云同步超过 700KB 会先丢最旧记录的图（本机还在）；本地满了同样只丢图、文字一条不丢"
+  ]},
   { t: "2026-11-08T18:42:00+08:00", v: "3.2", items: [
       "学习记录改成月历：一天一格，点哪天看哪天的细节，不用再往下滚一长串",
       "颜色就是考勤 + 质量：白=没干活、红=不达标（<60）、黄=及格（60–74）、蓝=良好（75–84）、绿=优秀（≥85）",
@@ -666,7 +686,21 @@ function loadState() {
 let dirty = false;
 
 function saveState(silent) {
-  localStorage.setItem(LS_STATE, JSON.stringify(STATE));
+  try {
+    localStorage.setItem(LS_STATE, JSON.stringify(STATE));
+  } catch (e) {
+    // 本地空间满了（图片太多）：从最旧的记录开始丢图，保住文字
+    const arr = (STATE.sessions || []).slice().sort((a, b) => String(a.end || "").localeCompare(String(b.end || "")));
+    let dropped = 0;
+    for (const x of arr) {
+      if (!(x.shots && x.shots.length)) continue;
+      x.shots = [];
+      dropped++;
+      try { localStorage.setItem(LS_STATE, JSON.stringify(STATE)); break; } catch (_) {}
+      if (dropped > 40) break;
+    }
+    if (dropped && typeof toast === "function") toast("本地空间满了，最旧的图片没能存下（文字都在）");
+  }
   updateSyncDot(dirty ? "?" : "");
   if (!silent) schedulePush();
 }
@@ -1000,6 +1034,20 @@ function applyConfig(raw) {
     if (added) saveKB();
   }
 }
+function stateForCloud() {
+  const LIMIT = 700 * 1024;
+  let s = JSON.stringify(STATE);
+  if (s.length <= LIMIT) return s;
+  const copy = JSON.parse(s);
+  const arr = (copy.sessions || []).slice().sort((a, b) => String(a.end || "").localeCompare(String(b.end || "")));
+  let dropped = 0;
+  for (const x of arr) {
+    if (s.length <= LIMIT) break;
+    if (x.shots && x.shots.length) { x.shots = []; dropped++; s = JSON.stringify(copy); }
+  }
+  if (dropped) console.warn("云存档超 700KB，已丢弃 " + dropped + " 条旧记录的图片（本机仍保留）");
+  return s;
+}
 async function doPush() {
   const c = syncCfg();
   if (!c.token || !c.gistId) return;
@@ -1008,7 +1056,7 @@ async function doPush() {
     const r = await fetch("https://api.github.com/gists/" + c.gistId, {
       method: "PATCH", headers: await ghHeaders(),
       body: JSON.stringify({ files: {
-        "whale-state.json": { content: JSON.stringify(STATE) },
+        "whale-state.json": { content: stateForCloud() },
         "whale-config.json": { content: buildConfig() }
       } })
     });
@@ -1081,7 +1129,7 @@ async function createGist() {
       headers: { "Authorization": "Bearer " + tk, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
       body: JSON.stringify({
         description: "督学小鲸娘云存档", public: false,
-        files: { "whale-state.json": { content: JSON.stringify(STATE) } }
+        files: { "whale-state.json": { content: stateForCloud() } }
       })
     });
     if (!r.ok) throw new Error("HTTP " + r.status + (r.status === 403 ? "（Token 没勾 gist 权限）" : ""));
@@ -1354,7 +1402,39 @@ const PART_KB = {
   "L2-6": ["控制方式", "多 CAN", "DS402"]
 };
 let TIMER = loadTimer();
-let FORM = { product: "page", value: 3 };
+let FORM = { product: "page", value: 3, shots: [] };
+
+function readShot(file) {
+  return new Promise((ok, no) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const MAX = 720;
+        let w = im.width, h = im.height;
+        const k = Math.min(1, MAX / Math.max(w, h));
+        w = Math.round(w * k); h = Math.round(h * k);
+        const cv = document.createElement("canvas");
+        cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(im, 0, 0, w, h);
+        ok(cv.toDataURL("image/jpeg", 0.66));
+      };
+      im.onerror = no;
+      im.src = fr.result;
+    };
+    fr.onerror = no;
+    fr.readAsDataURL(file);
+  });
+}
+function renderShotPreview() {
+  document.getElementById("f-shots").innerHTML = FORM.shots.map((d, i) =>
+    '<div class="sh"><img src="' + d + '" alt=""><i data-i="' + i + '">×</i></div>').join("");
+}
+function openViewer(src) {
+  const v = document.getElementById("viewer");
+  document.getElementById("viewer-img").src = src;
+  v.classList.add("on");
+}
 
 function loadTimer() {
   try { return JSON.parse(localStorage.getItem(LS_TIMER) || "null"); } catch (e) { return null; }
@@ -1581,7 +1661,9 @@ function renderDay() {
       '<div class="body">' + esc(s.content || "(没写内容)") + "</div>" +
       '<div class="meta">' + s.min + " 分钟 · " + esc(pn) + " · 自评 " + "★".repeat(s.value) + "☆".repeat(5 - s.value) +
       " · " + esc(gradeOf(s.score).n) + (s.kb && s.kb.length ? " · 用了：" + esc(s.kb.join("、")) : "") +
-      (s.feedback ? '<br><span class="fb">' + esc(s.feedback) + "</span>" : "") + "</div></div>";
+      (s.feedback ? '<br><span class="fb">' + esc(s.feedback) + "</span>" : "") + "</div>" +
+      ((s.shots && s.shots.length) ? '<div class="day-shots">' + s.shots.map(d => '<img src="' + d + '" alt="">').join("") + "</div>" : "") +
+      "</div>";
   }).join("");
   box.innerHTML = html;
 }
@@ -1634,6 +1716,8 @@ function openForm() {
   document.getElementById("lrn-live").style.display = "none";
   const pw = document.getElementById("f-prod");
   FORM.product = (mins >= 20) ? "page" : "note";
+  FORM.shots = [];
+  renderShotPreview();
   pw.innerHTML = PRODUCTS.map(p =>
     '<span class="chip' + (p.k === FORM.product ? " on" : "") + '" data-k="' + p.k + '">' + p.n + "</span>"
   ).join("");
@@ -1660,7 +1744,8 @@ function submitForm() {
     content: (document.getElementById("f-what").value || "").trim(),
     product: FORM.product,
     value: FORM.value,
-    kb: (TIMER && TIMER.kb) || []
+    kb: (TIMER && TIMER.kb) || [],
+    shots: FORM.shots.slice()
   };
   s.score = scoreSession(s);
   s.grade = gradeOf(s.score).n;
@@ -1783,6 +1868,33 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => switchP
 
 // ---- 学习页按钮 ----
 calInit();
+document.getElementById("btn-shot").onclick = () => document.getElementById("f-shot").click();
+document.getElementById("f-shot").onchange = async (e) => {
+  const room = 4 - FORM.shots.length;
+  const files = Array.from(e.target.files || []).slice(0, Math.max(0, room));
+  for (const f of files) {
+    if (!/^image\//.test(f.type)) continue;
+    try { FORM.shots.push(await readShot(f)); } catch (_) {}
+  }
+  e.target.value = "";
+  renderShotPreview();
+  if (FORM.shots.length >= 4) toast("最多 4 张，够了喵");
+};
+document.getElementById("f-shots").onclick = (e) => {
+  const i = e.target && e.target.getAttribute && e.target.getAttribute("data-i");
+  if (i === null || i === undefined || i === "") return;
+  FORM.shots.splice(+i, 1);
+  renderShotPreview();
+};
+document.getElementById("lrn-hist").addEventListener("click", (e) => {
+  const im = e.target && e.target.closest ? e.target.closest(".day-shots img") : null;
+  if (!im) return;
+  openViewer(im.getAttribute("src"));
+});
+document.getElementById("viewer").onclick = () => {
+  document.getElementById("viewer").classList.remove("on");
+  document.getElementById("viewer-img").src = "";
+};
 document.getElementById("btn-start").onclick = startTimer;
 document.getElementById("btn-pause").onclick = pauseTimer;
 document.getElementById("btn-stop").onclick = openForm;
