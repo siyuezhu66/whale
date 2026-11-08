@@ -377,8 +377,8 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
         <b>⚠️ 这串码等于你的登录密码：</b>别发给别人、也别把它截图发网上；担心泄露就去 GitHub 把这个 Token Revoke 掉重生成，再重新生成码。</div>
     </div>
 
-    <div class="sec">D e e p S e e k 对 话（可选）</div>
-    <div class="hint">不填就用本地规则回话，一样能判断。填了让回复更像人话。<br>
+    <div class="sec">A I 对 话 · D e e p S e e k（可选）</div>
+    <div class="hint"><b>要填 AI Key 就是这一栏。</b>不填就用本地规则回话，一样能判断。填了让回复更像人话，也能看懂你提交的截图和代码。<br>
       获取：<a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com/api_keys</a><br>
       <b>配了云同步的话，这个 Key 会跟着进度一起存进你的私有云存档</b>，换电脑换手机不用重填。存档是私有的，只有你的 Token 能读。</div>
     <div class="fld"><label>DeepSeek API Key</label><input id="s-ai" type="password" placeholder="sk-..." autocomplete="off"></div>
@@ -520,15 +520,16 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T23:40:00+08:00";
+const BUILD = "2026-11-08T23:52:00+08:00";
 const CHANGELOG = [
-  { t: "2026-11-08T23:30:00+08:00", v: "3.5", items: [
+  { t: "2026-11-08T23:52:00+08:00", v: "3.5", items: [
       "证据不再只能贴图：截图、代码（.py/.c/.md…）、Word、PPT 都能交",
       "小鲸娘现在真的能看懂图了（换成 deepseek-flash 的图像理解）：截图里是报错、波形、指令还是表格，都读得出来",
       "Word/PPT 直接抽文字读，不用你转格式",
       "读完会告诉你：你实际做了什么、和当前任务的关系（直接相关/擦边/无关）、还差什么，关联度还算进分数",
       "每个文件可以贴本机路径，记录里会显示「📎 文件名 + 路径」",
-      "原文件只在你本机读一次，云端只存摘要和缩略图，不存原文件"
+      "原文件只在你本机读一次，云端只存摘要和缩略图，不存原文件",
+      "设置页那一栏改名「AI 对话 · DeepSeek」，并在学习页加了「去填 Key」一键跳转（之前有人找不到在哪填）"
   ]},
   { t: "2026-11-08T19:36:00+08:00", v: "3.4", items: [
       "清掉之前为了调日历颜色塞进去的演示记录（评语写着「演示数据」的那些），看着像你真干过，容易误会",
@@ -1594,7 +1595,7 @@ async function runAnalyze() {
   wrap.style.display = "";
   if (!c.key) {
     AI_EV = null;
-    box.innerHTML = '<div class="evbox"><span class="r">还没填 AI Key</span><div class="w">去【设置 → AI】填一个，本鲸鱼娘就能看懂你交的图和代码了。现在文件照样存下，只是不解析。</div></div>';
+    box.innerHTML = '<div class="evbox"><span class="r">还没填 AI Key</span><div class="w">去【设置 → 最上面「AI 对话」那一栏】填一个，本鲸鱼娘就能看懂你交的图和代码了。现在文件照样存下，只是不解析。<br><button class="btn ghost" id="ev-goto" style="margin-top:8px;font-size:12px;padding:5px 12px">去填 Key →</button></div></div>';
     return;
   }
   box.innerHTML = '<div class="evbox"><span class="r">正在看…</span><div class="w">图要一张张读，代码也要扫，大概几秒。</div></div>';
@@ -2320,6 +2321,17 @@ document.getElementById("btn-ai-test").onclick = async () => {
 };
 
 document.getElementById("btn-check-upd").onclick = checkUpdate;
+
+// 学习页「还没填 AI Key」里的跳转按钮（动态生成，用委托）
+document.addEventListener("click", (e) => {
+  if (!e.target || e.target.id !== "ev-goto") return;
+  switchPage("set");
+  const inp = document.getElementById("s-ai");
+  if (inp) {
+    inp.scrollIntoView({ block: "center", behavior: "smooth" });
+    setTimeout(() => inp.focus(), 300);
+  }
+});
 document.getElementById("build").onclick = () => {
   switchPage("set");
   const box = document.getElementById("upd");
