@@ -491,7 +491,7 @@ const BANNED = ["视觉","建图","SLAM","slam","ROS2","ros2","FOC","foc","Ether
 const DOUBT_WORDS = ["好菜","不配","我很差","没用","废物","跟不上","放弃","摆烂","自我怀疑","自卑","算了"];
 const BLOCK_WORDS = ["作业","网课","考试","被叫","临时","生病","头疼","头痛","好累","太累","困","躺","没时间","状态差","崩了","加班","开会","实验课"];
 // 只有「已经做出来」的说法才算产物。单字「做/写/跑」会把「如何做」误判成已完成
-const PRODUCE_STRONG = ["跑了","跑通","写了","画了","做了","发了","测了","录了","交了","焊了","连了","调了","调通","完成了","搞定了","验证了","对比了","截了","保存了","提交了","抄了","存了","做出来","搭好","跑出来","出图了","通上了","改好了","补好了"];
+const PRODUCE_STRONG = ["跑了","跑通","跑了通","写了","画了","做了","发了","测了","录了","交了","焊了","连了","调了","调通","完成了","搞定了","验证了","对比了","截了","保存了","提交了","抄了","存了","做出来","搭好","跑出来","出图了","通上了","改好了","补好了","抄下来","抄下","写下来","记下来","接上","接通","存下来","导出来","测出来","录下来","截下来"];
 const PRODUCE_WEAK = ["补","改","整理","梳理"];
 // 求指导：不是汇报，别记账
 const HELP_WORDS = ["如何","怎么","咋","教我","从哪","第一步","步骤","怎么做","怎么搞","该怎么","要做什么","干什么","先做哪","求教","不会","不懂","卡在","具体点","说细点"];
@@ -523,13 +523,14 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-09T15:50:00+08:00";
+const BUILD = "2026-11-09T15:58:00+08:00";
 const CHANGELOG = [
   { t: "2026-11-09T15:50:00+08:00", v: "3.6", items: [
       "修了一个很蠢的 bug：他问「我要如何做 L2-2」，被当成「已经做了」还替他记了一笔。原因是词表里「做」「写」「跑」这种单字就算产物",
       "现在只有「做了 / 跑了 / 写了 / 跑通 / 出图了」这类完成态才算产物",
       "问「怎么做 / 从哪开始 / 具体步骤」时，直接把当前那一小节拆给他看：要做什么、产出什么、多少分钟、做到什么算过",
-      "这类问题不再写进进度记录，也不推进关卡"
+      "这类问题不再写进进度记录，也不推进关卡",
+      "「抄下来了 / 写好了 / 跑通了」这种也算产物；问哪一节（L2-3）就给哪一节的步骤，不乱指"
   ]},
   { t: "2026-11-08T23:52:00+08:00", v: "3.5", items: [
       "证据不再只能贴图：截图、代码（.py/.c/.md…）、Word、PPT 都能交",
@@ -877,14 +878,19 @@ function similar(a, b) {
 
 // 他说「我要如何做 L2-2」这种，就把他当前那一步拆给他看，别记账
 function guideReply(text) {
-  const asked = (text || "").toUpperCase().match(/\b(L[12])\b/) || (text || "").toUpperCase().match(/\b(L[12]-\d)\b/);
-  const want = asked ? asked[1] : null;
-  let track = want === "L1" ? "lab1" : "lab2";
-  let [step, idx, part] = currentPart(track);
-  if (want && step && !String(step.id).toUpperCase().startsWith(want)) {
-    [step, idx, part] = currentPart(want === "L1" ? "lab1" : "lab2");
+  const U = (text || "").toUpperCase();
+  const mm = U.match(/L([12])-(\d+)/);
+  let track = mm ? (mm[1] === "1" ? "lab1" : "lab2") : "lab2";
+  let step = null, idx = -1, part = null;
+  if (mm) {
+    step = (STATE.tracks[track].steps || []).find(s => String(s.id).toUpperCase() === mm[0]) || null;
+    if (step) { idx = step.done_parts || 0; part = step.parts[idx] || null; }
   }
-  if (!step) [step, idx, part] = currentPart(track === "lab2" ? "lab1" : "lab2");
+  if (!step) {
+    [step, idx, part] = currentPart("lab2");
+    track = "lab2";
+    if (!step) { [step, idx, part] = currentPart("lab1"); track = "lab1"; }
+  }
   if (!step) return "两条线的关卡都清完了，等我给你排新任务。";
   if (!part) return "「" + step.title + "」的产出已经齐了，直接去【学习】点开始，记一笔就过。";
   const left = step.parts.length - idx;
