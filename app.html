@@ -552,7 +552,7 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-09T16:52:00+08:00";
+const BUILD = "2026-11-09T16:58:00+08:00";
 const CHANGELOG = [
   { t: "2026-11-09T16:52:00+08:00", v: "3.7", items: [
       "加了第三条线：ROS2 集成。它不是你原来的计划，是你说要加、我评估完你选了「挂起等 M1」才进来的",
@@ -761,6 +761,23 @@ function cleanDemo(st) {
   return true;
 }
 
+// 老存档里没有新加的线/新加的关卡：补进去，别让用户看不到
+function migrateState(s) {
+  try {
+    const d = DEFAULT_STATE.tracks;
+    if (!s.tracks) s.tracks = {};
+    if (!s.tracks.lab3 && d.lab3) s.tracks.lab3 = clone(d.lab3);
+    const steps = s.tracks.lab2 && s.tracks.lab2.steps;
+    if (steps && !steps.some(x => x.id === "L2-2B")) {
+      const tpl = d.lab2.steps.filter(x => x.id === "L2-2B")[0];
+      if (tpl) {
+        const at = steps.findIndex(x => x.id === "L2-2");
+        steps.splice(at >= 0 ? at + 1 : steps.length, 0, clone(tpl));
+      }
+    }
+  } catch (e) {}
+  return s;
+}
 function loadState() {
   try {
     const raw = localStorage.getItem(LS_STATE);
@@ -768,7 +785,7 @@ function loadState() {
       const s = JSON.parse(raw);
       if (s && s.tracks) {
         if (cleanDemo(s)) { try { localStorage.setItem(LS_STATE, JSON.stringify(s)); } catch (e2) {} }
-        return s;
+        return migrateState(s);
       }
     }
   } catch (e) {}
@@ -1217,6 +1234,7 @@ async function doPull(merge) {
     if (!f || !f.content) throw new Error("存档里没有 whale-state.json");
     const remote = JSON.parse(f.content);
     cleanDemo(remote);
+    migrateState(remote);
     if (merge) {
       STATE = mergeStates(STATE, remote);
       localStorage.setItem(LS_STATE, JSON.stringify(STATE));
