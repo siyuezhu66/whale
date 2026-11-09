@@ -102,6 +102,8 @@ main{flex:1;overflow-y:auto;padding:0 16px 96px;-webkit-overflow-scrolling:touch
 .bar{height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden}
 .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--tek),var(--pink));transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .trk .now{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5}
+.trk.locked{opacity:.62}
+.trk .addon{font-size:10px;font-weight:400;color:#0a1a24;background:var(--gold);border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:middle}
 .sec{font-size:12px;letter-spacing:2px;color:var(--dim);margin:22px 0 10px}
 .fld{margin-bottom:14px}
 .fld label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px}
@@ -447,6 +449,9 @@ const DEFAULT_STATE = {
       {id:"L2-2", title:"用串口发指令让电机转起来", parts:[
         {desc:"把 USB-TTL 接上电机，用串口助手把上面那条指令发出去，让它转一下", out:"能复现的指令 + 接线照片", min:45},
         {desc:"把「最短一条能让它转」的指令存成 txt（含波特率和接线脚位）", out:"一个能直接用的指令文件", min:45}]},
+      {id:"L2-2B", title:"把 Ubuntu 跑起来（工具债，本周补完）", parts:[
+        {desc:"装 Ubuntu：虚拟机或双系统都行，能进桌面、能上网、能开终端", out:"一张进桌面的截图 + 能 ping 通", min:120},
+        {desc:"常用命令各敲一次：cd / ls / mkdir / chmod / apt install / git clone", out:"能自己装一个包并记下命令", min:120}]},
       {id:"L2-3", title:"读懂电机回传的反馈", parts:[
         {desc:"发一条「读反馈」指令，把回的字节原样抄下来", out:"一行回传数据", min:45},
         {desc:"标出位置 / 速度 / 电流各占哪几个字节、什么单位、怎么换算", out:"反馈字段表", min:45}]},
@@ -478,6 +483,17 @@ const DEFAULT_STATE = {
         {desc:"写「搭建与调试」+「结论」两章", out:"凑满约 10 页", min:60}]},
       {id:"L1-5", title:"做一次能讲 5 分钟的演示", parts:[
         {desc:"录一段 5 分钟演示视频，并写一页讲稿要点", out:"视频 + 讲稿", min:60}]}
+    ]},
+    lab3: {name:"实验室2 · ROS2 集成（你后加的 · M1 后自动解锁）", deadline:"", gate:"M1", budget:4, added:"2026-11-09", steps:[
+      {id:"R2-1", title:"ros2_control 的 hardware interface 怎么写", parts:[
+        {desc:"读一遍 hardware_interface 的 on_init / read / write 三个回调，抄下最小实现骨架", out:"一页接口骨架代码", min:90},
+        {desc:"把你已有的电机读写函数套进 read/write，能让包编译通过", out:"一个能编译的包", min:90}]},
+      {id:"R2-2", title:"话题 / 服务 / 参数，够用就行", parts:[
+        {desc:"写一个发布者发位置、一个订阅者收位置，两个节点同时跑起来", out:"能跑的一对节点", min:90},
+        {desc:"用参数把波特率、CAN 口做成可配置，不用改代码", out:"一页参数表", min:90}]},
+      {id:"R2-3", title:"CAN 帧桥进 ROS2 节点", parts:[
+        {desc:"把 CAN 收发包成一个节点，收到帧就发成话题", out:"能看到真实帧的话题输出", min:90},
+        {desc:"最小可视化：把位置画成一条曲线（别碰 RViz 花活）", out:"一张 ROS2 里的曲线", min:90}]}
     ]}
   },
   log: [],
@@ -488,6 +504,17 @@ const WEEK_SLOTS = [1.5, 1.5, 1.5, 0.0, 5.5, 8.5, 3.0];
 const WEEKDAY_CN = ["周一","周二","周三","周四","周五","周六","周日"];
 
 const BANNED = ["视觉","建图","SLAM","slam","ROS2","ros2","FOC","foc","EtherCAT","ethercat","IsaacLab","isaac","PCB","pcb","深度学习","神经网络","大模型","强化学习","语义","导航"];
+// 后加的线解锁后，它自己的关键词就不算「别碰」了
+function lab3Unlocked() {
+  const t = STATE.tracks.lab3;
+  if (!t) return false;
+  const m1 = STATE.milestones.filter(m => m.id === (t.gate || "M1"))[0];
+  return !!(m1 && m1.done);
+}
+function bannedNow() {
+  if (!lab3Unlocked()) return BANNED;
+  return BANNED.filter(x => !/ros2/i.test(x));
+}
 const DOUBT_WORDS = ["好菜","不配","我很差","没用","废物","跟不上","放弃","摆烂","自我怀疑","自卑","算了"];
 const BLOCK_WORDS = ["作业","网课","考试","被叫","临时","生病","头疼","头痛","好累","太累","困","躺","没时间","状态差","崩了","加班","开会","实验课"];
 // 只有「已经做出来」的说法才算产物。单字「做/写/跑」会把「如何做」误判成已完成
@@ -525,8 +552,15 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-09T16:08:00+08:00";
+const BUILD = "2026-11-09T16:52:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-09T16:52:00+08:00", v: "3.7", items: [
+      "加了第三条线：ROS2 集成。它不是你原来的计划，是你说要加、我评估完你选了「挂起等 M1」才进来的",
+      "这条线带锁：M1（11-22 三条曲线）没过之前它不会占你任何时间，进度页里灰着显示「🔒 M1 过了自动开始 · 每周 4 小时」",
+      "M1 一过自动解锁，主线切过去，每周从 16 小时里划 4 小时给它；同时 ROS2 从「别碰」清单里放出来",
+      "顺手把 Ubuntu 这笔工具债单独做成 L2-2B（装系统 2h + 常用命令 2h），排在 L2-2 后面当本周动作",
+      "进度页现在按实际存在的线渲染，后加的线带一个「后加」角标，你能一眼分清哪条是原计划"
+  ]},
   { t: "2026-11-09T15:50:00+08:00", v: "3.6", items: [
       "修了一个很蠢的 bug：他问「我要如何做 L2-2」，被当成「已经做了」还替他记了一笔。原因是词表里「做」「写」「跑」这种单字就算产物",
       "现在只有「做了 / 跑了 / 写了 / 跑通 / 出图了」这类完成态才算产物",
@@ -837,22 +871,22 @@ function genToday() {
     low = "补 20 分钟 C 语言指针（数组和指针怎么绕）";
     avoid = ["实验室任务（今天本来就不排）"];
   } else {
-    let track = "lab2";
-    if (STATE.milestones[0].done) track = "lab1";
+    let track = activeTrack();
     let [step, idx, part] = currentPart(track);
     if (!step) {
-      track = track === "lab2" ? "lab1" : "lab2";
-      [step, idx, part] = currentPart(track);
+      const alt = track === "lab2" ? "lab1" : "lab2";
+      const r2 = currentPart(alt);
+      if (r2[0]) { track = alt; step = r2[0]; idx = r2[1]; part = r2[2]; }
     }
     if (!step) {
       main = "两条线的关卡都清完了,等新任务";
       low = "整理一遍现有笔记";
     } else {
-      const tag = track === "lab2" ? "实验室2" : "实验室1";
+      const tag = track === "lab2" ? "实验室2" : track === "lab3" ? "ROS2（后加）" : "实验室1";
       const mm = part.min > 60 ? 60 : part.min;
       main = tag + "：" + part.desc + "（约 " + mm + " 分钟）→ " + part.out;
       low = "崩了也做这个：" + step.title + " 只做 10 分钟，写下「做到哪了」";
-      avoid = BANNED.slice(0, 6).concat(["比当前更靠后的章节"]);
+      avoid = bannedNow().slice(0, 6).concat(["比当前更靠后的章节"]);
       if (ls.stuck.indexOf(step.id) >= 0) {
         main = "「" + step.title + "」你已经记了 3 次以上还没过 → 今天只做它的第 1 小节，20 分钟，做完就算赢";
         low = "连 20 分钟都提不起劲：把卡住的那句话抄下来，去【对话】问一次";
@@ -916,7 +950,7 @@ function guideReply(text) {
 function judge(text) {
   const t = (text || "").trim();
   const prev = STATE.log.length ? STATE.log[STATE.log.length - 1].text : "";
-  const banned = mentions(t, BANNED);
+  const banned = mentions(t, bannedNow());
   const doubt = mentions(t, DOUBT_WORDS);
   const blocked = mentions(t, BLOCK_WORDS);
   const strong = mentions(t, PRODUCE_STRONG);
@@ -1727,7 +1761,13 @@ function fmtClock(ms) {
   const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
   return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
 }
-function activeTrack() { return (STATE.milestones[0] && STATE.milestones[0].done) ? "lab1" : "lab2"; }
+function activeTrack() {
+  const m1 = STATE.milestones[0] && STATE.milestones[0].done;
+  if (!m1) return "lab2";
+  // M1 过了：先看后加的线解没解锁
+  if (STATE.tracks.lab3 && lab3Unlocked()) return "lab3";
+  return "lab1";
+}
 function learnTarget() {
   const track = activeTrack();
   const [step, idx, part] = currentPart(track);
@@ -2073,12 +2113,15 @@ function renderProgress() {
       '<div class="t">' + esc(m.title) + "</div></div>";
   }).join("");
 
-  document.getElementById("tracks").innerHTML = ["lab2", "lab1"].map(tk => {
+  document.getElementById("tracks").innerHTML = Object.keys(STATE.tracks).map(tk => {
     const p = trackProgress(tk);
     const [step, idx, part] = currentPart(tk);
-    const now = step ? (step.id + " · 第 " + (idx + 1) + "/" + step.parts.length + " 小节：" + esc(part ? part.out : ""))
+    const locked = tk === "lab3" && !lab3Unlocked();
+    const now = locked ? ("🔒 M1 过了自动开始 · 每周 " + (STATE.tracks.lab3.budget || 4) + " 小时")
+      : step ? (step.id + " · 第 " + (idx + 1) + "/" + step.parts.length + " 小节：" + esc(part ? part.out : ""))
       : "关卡全清 · 等新任务";
-    return '<div class="card trk"><div class="row"><b>' + esc(p.name) + "</b><span>" +
+    const badge = STATE.tracks[tk].added ? '<span class="addon">后加</span>' : "";
+    return '<div class="card trk' + (locked ? " locked" : "") + '"><div class="row"><b>' + esc(p.name) + badge + "</b><span>" +
       p.partsDone + "/" + p.totalParts + " 小节 · " + p.pct + "%</span></div>" +
       '<div class="bar"><i style="width:' + p.pct + '%"></i></div>' +
       '<div class="now">当前：' + now + "</div></div>";
