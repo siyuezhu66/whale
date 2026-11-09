@@ -490,8 +490,11 @@ const WEEKDAY_CN = ["周一","周二","周三","周四","周五","周六","周�
 const BANNED = ["视觉","建图","SLAM","slam","ROS2","ros2","FOC","foc","EtherCAT","ethercat","IsaacLab","isaac","PCB","pcb","深度学习","神经网络","大模型","强化学习","语义","导航"];
 const DOUBT_WORDS = ["好菜","不配","我很差","没用","废物","跟不上","放弃","摆烂","自我怀疑","自卑","算了"];
 const BLOCK_WORDS = ["作业","网课","考试","被叫","临时","生病","头疼","头痛","好累","太累","困","躺","没时间","状态差","崩了","加班","开会","实验课"];
-const PRODUCE_STRONG = ["写","画","做","发","测","跑通","录","交","出图","焊","连","调","完成","搞定","验证","对比","截图","保存","提交","抄","存"];
+// 只有「已经做出来」的说法才算产物。单字「做/写/跑」会把「如何做」误判成已完成
+const PRODUCE_STRONG = ["跑了","跑通","写了","画了","做了","发了","测了","录了","交了","焊了","连了","调了","调通","完成了","搞定了","验证了","对比了","截了","保存了","提交了","抄了","存了","做出来","搭好","跑出来","出图了","通上了","改好了","补好了"];
 const PRODUCE_WEAK = ["补","改","整理","梳理"];
+// 求指导：不是汇报，别记账
+const HELP_WORDS = ["如何","怎么","咋","教我","从哪","第一步","步骤","怎么做","怎么搞","该怎么","要做什么","干什么","先做哪","求教","不会","不懂","卡在","具体点","说细点"];
 const ARTIFACTS = ["笔记","图","指令","曲线","截图","文件","视频","报告","表格","表","数据","页","代码","文档","记录","草稿","清单","公式"];
 const INPUT_WORDS = ["看","读","搜","查","找","想","学","理解","翻","浏览","过了一遍","复习","补课","补觉"];
 const LAB1_HINT = ["方案","工程图","装配","踝关节","设计报告","选型","传动","零件图","爆炸图","助力"];
@@ -520,8 +523,14 @@ const LS_AI = "whale_ai_v2";
 
 // =========================================================== 版本 ====
 // 每次改完 app.html 把 BUILD 改成当前时间，并在 CHANGELOG 最前面加一条
-const BUILD = "2026-11-08T23:52:00+08:00";
+const BUILD = "2026-11-09T15:50:00+08:00";
 const CHANGELOG = [
+  { t: "2026-11-09T15:50:00+08:00", v: "3.6", items: [
+      "修了一个很蠢的 bug：他问「我要如何做 L2-2」，被当成「已经做了」还替他记了一笔。原因是词表里「做」「写」「跑」这种单字就算产物",
+      "现在只有「做了 / 跑了 / 写了 / 跑通 / 出图了」这类完成态才算产物",
+      "问「怎么做 / 从哪开始 / 具体步骤」时，直接把当前那一小节拆给他看：要做什么、产出什么、多少分钟、做到什么算过",
+      "这类问题不再写进进度记录，也不推进关卡"
+  ]},
   { t: "2026-11-08T23:52:00+08:00", v: "3.5", items: [
       "证据不再只能贴图：截图、代码（.py/.c/.md…）、Word、PPT 都能交",
       "小鲸娘现在真的能看懂图了（换成 deepseek-flash 的图像理解）：截图里是报错、波形、指令还是表格，都读得出来",
@@ -866,6 +875,35 @@ function similar(a, b) {
   return inter / (sa.size + sb.size - inter);
 }
 
+// 他说「我要如何做 L2-2」这种，就把他当前那一步拆给他看，别记账
+function guideReply(text) {
+  const asked = (text || "").toUpperCase().match(/\b(L[12])\b/) || (text || "").toUpperCase().match(/\b(L[12]-\d)\b/);
+  const want = asked ? asked[1] : null;
+  let track = want === "L1" ? "lab1" : "lab2";
+  let [step, idx, part] = currentPart(track);
+  if (want && step && !String(step.id).toUpperCase().startsWith(want)) {
+    [step, idx, part] = currentPart(want === "L1" ? "lab1" : "lab2");
+  }
+  if (!step) [step, idx, part] = currentPart(track === "lab2" ? "lab1" : "lab2");
+  if (!step) return "两条线的关卡都清完了，等我给你排新任务。";
+  if (!part) return "「" + step.title + "」的产出已经齐了，直接去【学习】点开始，记一笔就过。";
+  const left = step.parts.length - idx;
+  const lines = [];
+  lines.push(step.id + "「" + step.title + "」共 " + step.parts.length + " 小节，你现在卡在第 " + (idx + 1) + " 小节，还剩 " + left + " 小节。");
+  lines.push("");
+  lines.push("你现在这一小节要做的事：");
+  lines.push("· " + part.desc);
+  lines.push("· 产出：" + part.out + "（约 " + part.min + " 分钟）");
+  if (left > 1) {
+    lines.push("");
+    lines.push("后面两小节，先别看，容易乱：");
+    step.parts.slice(idx + 1, idx + 3).forEach((p, i) => lines.push("· " + (idx + i + 2) + ". " + p.desc));
+  }
+  lines.push("");
+  lines.push("做到「" + part.out + "」这一条就算这一小节过了，回来点【学习】记一笔。");
+  return lines.join("\n");
+}
+
 function judge(text) {
   const t = (text || "").trim();
   const prev = STATE.log.length ? STATE.log[STATE.log.length - 1].text : "";
@@ -877,6 +915,7 @@ function judge(text) {
   const artifacts = mentions(t, ARTIFACTS);
   const produced = strong.concat(weak.filter(() => artifacts.length));
   const consumed = mentions(t, INPUT_WORDS);
+  const help = mentions(t, HELP_WORDS);
   const repeat = !!prev && similar(prev, t) > 0.55;
 
   let [step, idx, part] = currentPart("lab2");
@@ -907,6 +946,12 @@ function judge(text) {
     res.tomorrow = "shift";
     res.evidence = ["被「" + blocked.slice(0, 2).join(", ") + "」占了"];
     res.reply = "今天顺延，不算你的错。这周哪天能补？周四或周末各留一个 45 分钟的格子就行。\n明天还是：" + pdesc + "。";
+    return res;
+  }
+  if (help.length && !produced.length && !artifacts.length) {
+    res.verdict = "求指导";
+    res.evidence = ["在问「" + help[0] + "」，不是汇报干了什么"];
+    res.reply = guideReply(t);
     return res;
   }
   if (produced.length) {
@@ -1272,7 +1317,7 @@ async function aiAsk(text) {
     "",
     "先判断主人这句话是哪一类：",
     "report = 在说今天干了什么（抄了指令、看了手册、做了作业、测了一次）",
-    "question = 在问问题（效验是什么、这个字节什么意思、为什么跑不通）",
+    "question = 在问问题（效验是什么、这个字节什么意思、为什么跑不通、**我该怎么开始 / 我要怎么做好这一步 / 具体步骤是什么**）",
     "request = 想改计划/加任务/开新方向（我想增加任务、能不能也做视觉）",
     "chat = 打招呼、闲聊（你好、在吗、随便聊聊）",
     "emotion = 自我怀疑、焦虑（我好菜、学不下去）",
@@ -1280,6 +1325,7 @@ async function aiAsk(text) {
     "然后按类型回应：",
     "· report：判断真推进还是原地打转。标准很硬——有能拿出手的产物（截图/一页纸/一条指令/一条曲线/一个文件）才算真推进；只说看了、想明白了、学了一会儿 = 原地打转。没产物别夸。给一个明天能直接做的动作。",
     "· question：**直接回答他问的那个问题**，大白话，能给例子就给例子。不要反问他进度，不要套「有没有东西能给师兄看」这句话。**答完就停**：问题本身答清楚了就结束，不要再硬加一句「今天该做的」。只有他明显在拿问题拖延（连着问好几条却不动手）才补一句今天的动作。",
+    "· 重要：他问「我要怎么做 X」「怎么开始」「这一步具体干什么」时，**必须给操作步骤**（先做什么、拿什么、几分钟、做到什么算过），并且**绝不能**判成 report、不能写「记一笔」「已记」——他还没做，别替他记账。",
     "· request：要加新方向（视觉/建图/SLAM/ROS2/FOC/EtherCAT/PCB/深度学习）或跳到当前步骤更靠后的内容 → 明确拦下，一句话说清理由，给替代做法。只是把当前任务拆细（比如「把缺口再仔细找出来」）→ 答应，给出具体到 20 分钟能做的拆分。",
     "· chat：轻松打个招呼，顺带说一句今天该干的那件事，别列清单。",
     "· emotion：不给鸡汤。给事实——他已经会什么、离门槛差什么、还剩几天，然后给一个 10 分钟能做完的小动作。",
@@ -1337,7 +1383,7 @@ let CHAT = [];
 try { CHAT = JSON.parse(localStorage.getItem(LS_CHAT) || "[]"); } catch (e) { CHAT = []; }
 function saveChat() { localStorage.setItem(LS_CHAT, JSON.stringify(CHAT.slice(-60))); }
 
-function vclass(v) { return v === "真推进" ? "" : v === "原地打转" ? " zhuan" : " pao"; }
+function vclass(v) { return v === "真推进" ? "" : v === "求指导" ? " shou" : v === "原地打转" ? " zhuan" : " pao"; }
 
 function renderChat() {
   const box = document.getElementById("msgs");
@@ -1371,6 +1417,9 @@ async function send() {
       return;
     }
     if (a) {
+      // 护栏：他明明在问「怎么做」、也没交任何东西，就别让 AI 替他记账
+      const asking = mentions(text, HELP_WORDS).length && !mentions(text, ARTIFACTS).length && !mentions(text, PRODUCE_STRONG).length;
+      if (asking && a.type === "report") { a.type = "question"; a.verdict = "无"; }
       const isReport = a.type === "report";
       let extra = "";
       if (isReport && a.verdict === "真推进") {
@@ -1399,7 +1448,7 @@ async function ruleReply(text) {
       else extra += "\n这条线的关卡已经清完了，等新任务。";
     }
   }
-  record(text, v, track);
+  if (v.verdict !== "求指导") record(text, v, track);
   CHAT.push({ who: "bot", text: v.reply + extra, verdict: v.verdict, evidence: v.evidence });
   saveChat(); saveState(); renderChat(); renderToday(); renderProgress();
 }
